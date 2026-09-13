@@ -8,7 +8,7 @@ import io.github.hanhy06.embellishchat.mention.rule.MentionRule;
 import io.github.hanhy06.embellishchat.styling.rule.StyleAction;
 import io.github.hanhy06.embellishchat.styling.rule.StyleRule;
 import net.minecraft.network.chat.MutableComponent;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.sounds.SoundEvent;
 
 import java.awt.*;
@@ -51,7 +51,7 @@ public class ConfigManager {
             .registerTypeAdapter(Pattern.class, new PatternTypeAdapter())
             .registerTypeAdapter(SoundEvent.class, new SoundEventTypeAdapter())
             .registerTypeAdapter(Color.class, new ColorTypeAdapter())
-            .registerTypeAdapter(Identifier.class, new IdentifierTypeAdapter())
+            .registerTypeAdapter(ResourceLocation.class, new ResourceLocationTypeAdapter())
             .registerTypeAdapter(MutableComponent.class, new MutableTextAdapter())
             .setPrettyPrinting()
             .setStrictness(Strictness.LENIENT)
@@ -125,7 +125,7 @@ public class ConfigManager {
         if (config.version() == null) return "version is missing";
         if (config.style_rules() == null) return "style_rules is missing";
         if (config.mention_rules() == null) return "mention_rules is missing";
-        if (config.message_header() == null) return "message_header is missing";
+        if (config.prefix() == null) return "prefix is missing";
         if (config.whitelist() == null) return "whitelist is missing";
         if (config.icon() == null) return "icon is missing";
         if (config.item() == null) return "item is missing";
@@ -192,8 +192,8 @@ public class ConfigManager {
             }
         }
 
-        for (Map.Entry<String, MutableComponent> entry : config.message_header().entrySet()) {
-            if (entry.getValue() == null) return "message_header contains a null value";
+        for (Map.Entry<String, MutableComponent> entry : config.prefix().entrySet()) {
+            if (entry.getValue() == null) return "prefix contains a null value";
         }
 
         return null;
@@ -245,8 +245,8 @@ public class ConfigManager {
         }
 
         JsonObject presetsJson = new JsonObject();
-        JsonElement messageHeader = fullJson.remove("message_header");
-        if (messageHeader != null) presetsJson.add("message_header", messageHeader);
+        JsonElement prefixes = fullJson.remove("prefix");
+        if (prefixes != null) presetsJson.add("prefix", prefixes);
         JsonElement whitelist = fullJson.remove("whitelist");
         if (whitelist != null) presetsJson.add("whitelist", whitelist);
         JsonElement icon = fullJson.remove("icon");
