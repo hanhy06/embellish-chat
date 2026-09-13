@@ -23,10 +23,8 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.ItemStackTemplate;
 import net.minecraft.world.item.component.ResolvableProfile;
 import net.minecraft.world.scores.PlayerTeam;
-import net.minecraft.world.scores.TeamColor;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.math.NumberUtils;
 
@@ -198,10 +196,12 @@ public class StyleRegistry {
         PlayerTeam team = player.getTeam();
         if (team == null) return parameter.segment();
 
-        Optional<TeamColor> color = team.getColor();
-        return color
-                .map(teamColor -> parameter.segment().withStyle(Style.EMPTY.withColor(teamColor.rgb())))
-                .orElseGet(parameter::segment);
+        ChatFormatting formatting = team.getColor();
+        if (formatting.isColor()){
+            return parameter.segment().withStyle(Style.EMPTY.withColor(formatting));
+        }
+
+        return parameter.segment();
     }
 
     public MutableComponent BOLD(StyleParameter parameter) {
@@ -273,7 +273,7 @@ public class StyleRegistry {
 
         if (item.isEmpty()) throw new MessageBlockedException("No item found.");
 
-        HoverEvent hoverEvent = new HoverEvent.ShowItem(ItemStackTemplate.fromNonEmptyStack(item));
+        HoverEvent hoverEvent = new HoverEvent.ShowItem(item);
         return parameter.segment().withStyle(Style.EMPTY.withHoverEvent(hoverEvent));
     }
 
@@ -369,7 +369,7 @@ public class StyleRegistry {
             result = Component.object(new AtlasSprite(atlasId,spriteId));
         }
 
-        HoverEvent hoverEvent = new HoverEvent.ShowItem(ItemStackTemplate.fromNonEmptyStack(stack));
+        HoverEvent hoverEvent = new HoverEvent.ShowItem(stack);
         ClickEvent clickEvent = new ClickEvent.RunCommand("/embellish-chat open "+player.getUUID());
         InventoryManager.putItem(player,stack);
 
