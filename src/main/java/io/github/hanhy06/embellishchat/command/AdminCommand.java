@@ -18,10 +18,9 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.server.players.ProfileResolver;
+import net.minecraft.server.players.GameProfileCache;
 
 import java.util.HashSet;
-import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.regex.Matcher;
@@ -32,27 +31,31 @@ import java.util.stream.Collectors;
 public class AdminCommand {
     private static StressTestService testService = null;
 
+    private static java.util.function.Predicate<CommandSourceStack> requiresGamemaster() {
+        return source -> source.hasPermission(Commands.LEVEL_GAMEMASTERS);
+    }
+
     public static void registerCommand() {
         CommandRegistrationCallback.EVENT.register((commandDispatcher, commandRegistryAccess, registrationEnvironment) -> commandDispatcher.register(
                 Commands.literal(EmbellishChat.MOD_ID)
                         .then(Commands.literal("reload")
-                                .requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
+                                .requires(requiresGamemaster())
                                 .executes(AdminCommand::executeReloadConfig)
                         )
                         .then(Commands.literal("ban")
-                                .requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
+                                .requires(requiresGamemaster())
                                 .then(Commands.argument("target", EntityArgument.players())
                                         .executes(context -> executeBanOrPardon(context, true))
                                 )
                         )
                         .then(Commands.literal("pardon")
-                                .requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
+                                .requires(requiresGamemaster())
                                 .then(Commands.argument("target", EntityArgument.players())
                                         .executes(context -> executeBanOrPardon(context, false))
                                 )
                         )
                         .then(Commands.literal("stress_test")
-                                .requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
+                                .requires(requiresGamemaster())
                                 .then(Commands.argument("ticks", IntegerArgumentType.integer())
                                         .then(Commands.argument("count", IntegerArgumentType.integer())
                                                 .then(Commands.argument("text", StringArgumentType.string())
@@ -71,7 +74,7 @@ public class AdminCommand {
                                 )
                         )
                         .then(Commands.literal("regex_test")
-                                .requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
+                                .requires(requiresGamemaster())
                                 .then(Commands.argument("regex",StringArgumentType.string())
                                         .then(Commands.argument("text",StringArgumentType.string())
                                                 .executes(AdminCommand::executeRegexTest))
@@ -195,20 +198,22 @@ public class AdminCommand {
     private static int executeBanlist(CommandContext<CommandSourceStack> context) {
         CommandSourceStack source = context.getSource();
         HashSet<UUID> bannedList = ConfigManager.getConfig().banned_players();
+        GameProfileCache profileCache = EmbellishChat.SERVER.getProfileCache();
 
         source.sendSystemMessage(PlaceHolderUtil.parseTag(
                 "<gray>-----</gray> <aqua><b>Banned Player List</b></aqua> <gray>-----</gray>"
         ));
 
-        ProfileResolver resolver = EmbellishChat.SERVER.services().profileResolver();
         for (UUID uuid : bannedList) {
-            Optional<GameProfile> profile = resolver.fetchById(uuid);
-            if (profile.isEmpty()) continue;
-            String message = "<red><b>name</b></red>: " + profile.get().name();
+            if (profileCache == null) continue;
+            GameProfile profile = profileCache.get(uuid).orElse(null);
+            if (profile == null) continue;
+            String message = "<red><b>name</b></red>: " + profile.getName();
             source.sendSystemMessage(PlaceHolderUtil.parseTag(message));
         }
 
         source.sendSystemMessage(PlaceHolderUtil.parseTag("<gray>------------------------------</gray>"));
         return 1;
     }
+
 }

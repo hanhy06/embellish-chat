@@ -3,16 +3,16 @@
 This page collects practical style recipes. Use them as starting points, then adjust permission groups, patterns, and
 presets for your server.
 
-## Message Header
+## Chat Prefix
 
-Goal: Add a formatted header before chat messages.
+Goal: Add a formatted prefix before chat messages.
 
 Edit `config/embellish-chat/presets.json`.
 
 ```json
 {
-  "message_header": {
-    "chat.header.default": "<b>[%player:displayname%]</b> "
+  "prefix": {
+    "chat.prefix.default": "<b>[%player:displayname%]</b> "
   }
 }
 ```
@@ -20,7 +20,7 @@ Edit `config/embellish-chat/presets.json`.
 ![Formatting](../assets/images/Formatting.png)
 
 !!! note "This belongs in presets.json"
-    Message header values are shared presets, not style rules. When you fully replace vanilla chat formatting, enable
+    Prefix values are shared presets, not style rules. When you fully replace vanilla chat formatting, enable
     `disable_vanilla_chat_format` in `config.json`.
 
 ## Bubble Chat

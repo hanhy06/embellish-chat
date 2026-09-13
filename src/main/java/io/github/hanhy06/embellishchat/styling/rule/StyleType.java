@@ -5,7 +5,6 @@ public enum StyleType {
     COLOR_RAINBOW,
     COLOR_GRADIENT,
     COLOR_PRESET,
-    COLOR_SHADOW,
     COLOR_TEAM,
 
     BOLD,
@@ -35,11 +34,9 @@ public enum StyleType {
     SHOW_ITEM,
     SHOW_INVENTORY,
     SHOW_ENDER_CHEST,
-    ICON_PRESET,
     JSON,
     DISCORD_JSON,
     COMMAND_RUN,
     LOG,
-    BUBBLE,
     BLOCK
 }
