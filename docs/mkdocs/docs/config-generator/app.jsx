@@ -45,7 +45,7 @@ const emptySound = () => ({
   id: "minecraft:entity.experience_orb.pickup",
   category: "UI",
   volume: 1,
-  pitch: 1
+  pitch: 1.75
 });
 const emptyStyleRule = () => ({ pattern: "", comment: "", styles: [emptyStyle()] });
 const emptyMentionRule = () => ({

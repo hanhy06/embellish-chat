@@ -119,7 +119,7 @@ Goal: Let players share a view-only showcase of the item they are holding.
 
 ```json
 {
-  "pattern": "\\[i]()",
+  "pattern": "(\\[i\\])()",
   "styles": [
     {
       "styleType": "SHOW_ITEM",
