@@ -27,7 +27,7 @@ public class MessageProcessor implements ConfigListener {
 
     private Config config;
     private Set<UUID> bannedPlayerList;
-    private LinkedHashMap<String,MutableComponent> messageHeader;
+    private LinkedHashMap<String,MutableComponent> prefix;
 
     public MessageProcessor(MentionProcessor mentionProcessor, StyleProcessor styleProcessor, PlayerList playerList) {
         INSTANCE = this;
@@ -40,33 +40,32 @@ public class MessageProcessor implements ConfigListener {
     public void onConfigReload(Config newConfig) {
         this.config = newConfig;
         this.bannedPlayerList = config.banned_players();
-        this.messageHeader = config.message_header();
+        this.prefix = config.prefix();
     }
 
     public PlayerChatMessage handleMessage(PlayerChatMessage message) {
         ServerPlayer sender = playerList.getPlayer(message.sender());
-        if (sender == null) return message;
+        if (sender == null || bannedPlayerList.contains(message.sender())) {
+            return message;
+        }
 
         MutableComponent textMessage = message.decoratedContent().copy();
         String stringMessage = message.decoratedContent().getString();
         PlayerChatMessage result;
 
         try {
-            List<String> headerKeys = getPermissions(sender, messageHeader.keySet());
-            MutableComponent header = headerKeys.isEmpty() ? Component.empty() : this.messageHeader.get(headerKeys.getLast());
-            header = PlaceHolderUtil.parsePlaceholder(header,sender);
-
-            if (bannedPlayerList.contains(message.sender())) {
-                return message.withUnsignedContent(header.append(textMessage));
-            }
-
             PlaceHolderUtil.put(message.sender(),stringMessage);
             List<Mention> mentions = mentionProcessor.handleMention(stringMessage,getPermissions(sender, config.mention_rules().keySet()),sender);
             mentions.sort(Comparator.comparing(Mention::begin));
 
             textMessage = styleProcessor.applyMention(textMessage,mentions,sender);
             textMessage = styleProcessor.handleStyle(textMessage,getPermissions(sender, config.style_rules().keySet()),sender);
-            textMessage = header.append(textMessage);
+
+            List<String> prefixKeys = getPermissions(sender, prefix.keySet());
+            if (!prefixKeys.isEmpty()){
+                MutableComponent prefix = this.prefix.get(prefixKeys.getLast());
+                textMessage = PlaceHolderUtil.parsePlaceholder(prefix,sender).append(textMessage);
+            }
 
             result = message.withUnsignedContent(textMessage);
 

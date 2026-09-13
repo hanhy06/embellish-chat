@@ -10,8 +10,6 @@ import io.github.hanhy06.embellishchat.styling.rule.StyleRule;
 import io.github.hanhy06.embellishchat.styling.rule.StyleType;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.network.chat.MutableComponent;
-import net.minecraft.network.chat.contents.objects.AtlasSprite;
-import net.minecraft.resources.Identifier;
 import net.minecraft.sounds.SoundSource;
 
 import java.awt.*;
@@ -26,10 +24,8 @@ public record Config(
         LinkedHashMap<String,List<MentionRule>> mention_rules,
 
         //preset
-        LinkedHashMap<String, MutableComponent> message_header,
+        LinkedHashMap<String, MutableComponent> prefix,
         HashSet<String> whitelist,
-        HashMap<String, AtlasSprite> icon,
-        HashMap<String, AtlasSprite> item,
         HashMap<String, Color> color,
 
         //setting
@@ -62,8 +58,6 @@ public record Config(
 
                 new LinkedHashMap<>(),
                 new HashSet<>(),
-                createDefaultIcon(),
-                createDefaultItem(),
                 createDefaultColors(),
 
                 ",",
@@ -164,11 +158,6 @@ public record Config(
                         "(\\[end\\])()",
                         "<blue><b>Pattern</b></blue>: [end]\n<dark_aqua><b>Comment</b></dark_aqua>: show ender chest contents\n",
                         List.of(StyleAction.of(StyleType.SHOW_ENDER_CHEST, ""))
-                ),
-                StyleRule.of(
-                        "(:(.+?):)",
-                        "<blue><b>Pattern</b></blue>: :icon:\n<dark_aqua><b>Comment</b></dark_aqua>: icon emoji/icon preset\n",
-                        List.of(StyleAction.of(StyleType.ICON_PRESET, ""))
                 )
         ));
 
@@ -298,154 +287,6 @@ public record Config(
         colors.put("white", new Color(0xFFFFFF));
 
         return colors;
-    }
-
-    private static HashMap<String, AtlasSprite> createDefaultIcon() {
-        HashMap<String, AtlasSprite> icon = new HashMap<>();
-
-        icon.put("fire", new AtlasSprite(
-                Identifier.parse("minecraft:blocks"),
-                Identifier.parse("minecraft:block/campfire_fire"))
-        );
-        icon.put("lava", new AtlasSprite(
-                Identifier.parse("minecraft:blocks"),
-                Identifier.parse("minecraft:block/lava_still"))
-        );
-        icon.put("food", new AtlasSprite(
-                Identifier.parse("minecraft:items"),
-                Identifier.parse("minecraft:item/cooked_beef"))
-        );
-        icon.put("hunger", new AtlasSprite(
-                Identifier.parse("minecraft:gui"),
-                Identifier.parse("minecraft:hud/food_half"))
-        );
-        icon.put("heart", new AtlasSprite(
-                Identifier.parse("minecraft:gui"),
-                Identifier.parse("minecraft:hud/heart/full"))
-        );
-        icon.put("love", new AtlasSprite(
-                Identifier.parse("minecraft:gui"),
-                Identifier.parse("minecraft:mob_effect/health_boost"))
-        );
-        icon.put("flower", new AtlasSprite(
-                Identifier.parse("minecraft:blocks"),
-                Identifier.parse("minecraft:block/poppy"))
-        );
-        icon.put("tree", new AtlasSprite(
-                Identifier.parse("minecraft:gui"),
-                Identifier.parse("minecraft:toast/tree"))
-        );
-        icon.put("yes", new AtlasSprite(
-                Identifier.parse("minecraft:gui"),
-                Identifier.parse("minecraft:container/beacon/confirm"))
-        );
-        icon.put("no", new AtlasSprite(
-                Identifier.parse("minecraft:gui"),
-                Identifier.parse("minecraft:container/beacon/cancel"))
-        );
-        icon.put("move", new AtlasSprite(
-                Identifier.parse("minecraft:gui"),
-                Identifier.parse("minecraft:mob_effect/wind_charged"))
-        );
-        icon.put("emerald", new AtlasSprite(
-                Identifier.parse("minecraft:items"),
-                Identifier.parse("minecraft:item/emerald"))
-        );
-        icon.put("diamond", new AtlasSprite(
-                Identifier.parse("minecraft:items"),
-                Identifier.parse("minecraft:item/diamond"))
-        );
-        icon.put("star", new AtlasSprite(
-                Identifier.parse("minecraft:items"),
-                Identifier.parse("minecraft:item/nether_star"))
-        );
-        icon.put("time", new AtlasSprite(
-                Identifier.parse("minecraft:items"),
-                Identifier.parse("minecraft:item/clock_54"))
-        );
-        icon.put("note", new AtlasSprite(
-                Identifier.parse("minecraft:items"),
-                Identifier.parse("minecraft:item/paper"))
-        );
-        icon.put("totem", new AtlasSprite(
-                Identifier.parse("minecraft:items"),
-                Identifier.parse("minecraft:item/totem_of_undying"))
-        );
-        icon.put("music", new AtlasSprite(
-                Identifier.parse("minecraft:particles"),
-                Identifier.parse("minecraft:note"))
-        );
-        icon.put("mine", new AtlasSprite(
-                Identifier.parse("minecraft:items"),
-                Identifier.parse("minecraft:item/diamond_pickaxe"))
-        );
-        icon.put("luck", new AtlasSprite(
-                Identifier.parse("minecraft:gui"),
-                Identifier.parse("minecraft:mob_effect/luck"))
-        );
-        icon.put("poison", new AtlasSprite(
-                Identifier.parse("minecraft:gui"),
-                Identifier.parse("minecraft:mob_effect/poison"))
-        );
-        icon.put("fight", new AtlasSprite(
-                Identifier.parse("minecraft:gui"),
-                Identifier.parse("minecraft:mob_effect/raid_omen"))
-        );
-        icon.put("world", new AtlasSprite(
-                Identifier.parse("minecraft:gui"),
-                Identifier.parse("minecraft:icon/link"))
-        );
-        icon.put("news", new AtlasSprite(
-                Identifier.parse("minecraft:gui"),
-                Identifier.parse("minecraft:icon/news"))
-        );
-        icon.put("search", new AtlasSprite(
-                Identifier.parse("minecraft:gui"),
-                Identifier.parse("minecraft:icon/search"))
-        );
-        icon.put("tv", new AtlasSprite(
-                Identifier.parse("minecraft:gui"),
-                Identifier.parse("minecraft:icon/video_link"))
-        );
-
-        return icon;
-    }
-
-    private static HashMap<String, AtlasSprite> createDefaultItem() {
-        HashMap<String, AtlasSprite> item = new HashMap<>();
-
-        item.put("minecraft:clock",new AtlasSprite(
-                Identifier.parse("minecraft:items"),
-                Identifier.parse("minecraft:item/clock_00")
-                )
-        );
-        item.put("minecraft:compass",new AtlasSprite(
-                        Identifier.parse("minecraft:items"),
-                        Identifier.parse("minecraft:item/compass_20")
-                )
-        );
-        item.put("minecraft:recovery_compass",new AtlasSprite(
-                        Identifier.parse("minecraft:items"),
-                        Identifier.parse("minecraft:item/recovery_compass_20")
-                )
-        );
-        item.put("minecraft:crossbow",new AtlasSprite(
-                        Identifier.parse("minecraft:items"),
-                        Identifier.parse("minecraft:item/crossbow_arrow")
-                )
-        );
-        item.put("minecraft:tipped_arrow",new AtlasSprite(
-                        Identifier.parse("minecraft:items"),
-                        Identifier.parse("minecraft:item/arrow")
-                )
-        );
-        item.put("minecraft:enchanted_golden_apple",new AtlasSprite(
-                        Identifier.parse("minecraft:items"),
-                        Identifier.parse("minecraft:item/golden_apple")
-                )
-        );
-
-        return item;
     }
 
 }

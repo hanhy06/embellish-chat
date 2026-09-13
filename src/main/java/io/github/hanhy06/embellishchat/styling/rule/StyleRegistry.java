@@ -11,22 +11,16 @@ import io.github.hanhy06.embellishchat.styling.util.BubbleUtil;
 import io.github.hanhy06.embellishchat.styling.util.ColorUtil;
 import io.github.hanhy06.embellishchat.styling.util.DiscordUtil;
 import io.github.hanhy06.embellishchat.util.MessageBlockedException;
+import io.github.hanhy06.embellishchat.util.PlaceHolderUtil;
 import net.minecraft.ChatFormatting;
 import net.minecraft.commands.CommandSourceStack;
-import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.chat.*;
 import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.contents.objects.AtlasSprite;
-import net.minecraft.network.chat.contents.objects.PlayerSprite;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.ItemStackTemplate;
-import net.minecraft.world.item.component.ResolvableProfile;
 import net.minecraft.world.scores.PlayerTeam;
-import net.minecraft.world.scores.TeamColor;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.math.NumberUtils;
 
@@ -48,8 +42,6 @@ public class StyleRegistry {
     private final Config config;
 
     private final DateTimeFormatter timestamp;
-    private final HashMap<String, AtlasSprite> icon;
-    private final HashMap<String, AtlasSprite> item;
     private final HashMap<String, Color> color;
     private final HashSet<String> whitelist;
 
@@ -60,8 +52,6 @@ public class StyleRegistry {
     public StyleRegistry(Config config) {
         this.config = config;
         this.timestamp = DateTimeFormatter.ofPattern(config.timestamp());
-        this.icon = config.icon();
-        this.item = config.item();
         this.color = config.color();
         this.whitelist = config.whitelist();
         this.registries = new EnumMap<>(Map.ofEntries(
@@ -99,7 +89,6 @@ public class StyleRegistry {
                 entry(StyleType.SHOW_ITEM, this::SHOW_ITEM),
                 entry(StyleType.SHOW_INVENTORY, this::SHOW_INVENTORY),
                 entry(StyleType.SHOW_ENDER_CHEST, this::SHOW_ENDER_CHEST),
-                entry(StyleType.ICON_PRESET, this::ICON_PRESET),
                 entry(StyleType.JSON, this::JSON),
                 entry(StyleType.DISCORD_JSON, this::DISCORD_JSON),
                 entry(StyleType.COMMAND_RUN, this::COMMAND_RUN),
@@ -198,10 +187,12 @@ public class StyleRegistry {
         PlayerTeam team = player.getTeam();
         if (team == null) return parameter.segment();
 
-        Optional<TeamColor> color = team.getColor();
-        return color
-                .map(teamColor -> parameter.segment().withStyle(Style.EMPTY.withColor(teamColor.rgb())))
-                .orElseGet(parameter::segment);
+        ChatFormatting formatting = team.getColor();
+        if (formatting.isColor()){
+            return parameter.segment().withStyle(Style.EMPTY.withColor(formatting));
+        }
+
+        return parameter.segment();
     }
 
     public MutableComponent BOLD(StyleParameter parameter) {
@@ -226,11 +217,10 @@ public class StyleRegistry {
     }
 
     public MutableComponent FONT(StyleParameter parameter) {
-        Identifier fontId = Identifier.tryParse(parameter.getString());
+        ResourceLocation fontId = ResourceLocation.tryParse(parameter.getString());
         if (fontId == null) return parameter.segment();
 
-        FontDescription font = new FontDescription.Resource(fontId);
-        return parameter.segment().withStyle(Style.EMPTY.withFont(font));
+        return parameter.segment().withStyle(Style.EMPTY.withFont(fontId));
     }
 
     public MutableComponent CLEAR(StyleParameter parameter) {
@@ -273,7 +263,7 @@ public class StyleRegistry {
 
         if (item.isEmpty()) throw new MessageBlockedException("No item found.");
 
-        HoverEvent hoverEvent = new HoverEvent.ShowItem(ItemStackTemplate.fromNonEmptyStack(item));
+        HoverEvent hoverEvent = new HoverEvent.ShowItem(item);
         return parameter.segment().withStyle(Style.EMPTY.withHoverEvent(hoverEvent));
     }
 
@@ -349,31 +339,20 @@ public class StyleRegistry {
     public MutableComponent SHOW_ITEM(StyleParameter parameter){
         ServerPlayer player = parameter.player();
         if (player == null) return parameter.segment();
-        ItemStack stack = player.getMainHandItem();
-        if (stack.isEmpty()) throw new MessageBlockedException("No item found.");
-        Identifier modelId = stack.get(DataComponents.ITEM_MODEL);
-        if (modelId == null) return parameter.segment();
+        ItemStack item = player.getMainHandItem();
+        if (item.isEmpty()) throw new MessageBlockedException("No item found.");
 
-        MutableComponent result;
-        AtlasSprite atlas = item.get(modelId.toString());
-
-        if ("only_name".equals(parameter.getString())){
-            result = stack.getDisplayName().copy();
-        } else if (atlas != null) {
-            result = Component.object(atlas);
-        } else if (stack.getItem() instanceof BlockItem){
-            result = stack.getDisplayName().copy();
-        } else {
-            Identifier atlasId = Identifier.fromNamespaceAndPath(modelId.getNamespace(),"items");
-            Identifier spriteId = Identifier.fromNamespaceAndPath(modelId.getNamespace(),String.format("item/%s",modelId.getPath()));
-            result = Component.object(new AtlasSprite(atlasId,spriteId));
-        }
-
-        HoverEvent hoverEvent = new HoverEvent.ShowItem(ItemStackTemplate.fromNonEmptyStack(stack));
+        HoverEvent hoverEvent = new HoverEvent.ShowItem(item);
         ClickEvent clickEvent = new ClickEvent.RunCommand("/embellish-chat open "+player.getUUID());
-        InventoryManager.putItem(player,stack);
+        InventoryManager.putItem(player,item);
+        MutableComponent name = item.getHoverName().copy().withStyle(style -> style
+                .withHoverEvent(hoverEvent)
+                .withClickEvent(clickEvent)
+                .withBold(true)
+        );
+        Component text = Component.literal("[").append(name).append("]");
 
-        return result.withStyle(Style.EMPTY.withHoverEvent(hoverEvent).withClickEvent(clickEvent));
+        return text.copy();
     }
 
     public MutableComponent SHOW_INVENTORY(StyleParameter parameter){
@@ -382,11 +361,10 @@ public class StyleRegistry {
         InventoryManager.putInventory(player);
 
         ClickEvent clickEvent = new ClickEvent.RunCommand("/embellish-chat open "+player.getUUID());
-        HoverEvent hoverEvent = new HoverEvent.ShowText(Component.literal(player.getName().getString() + "'s inventory"));
-        ResolvableProfile component = ResolvableProfile.createResolved(player.getGameProfile());
-        MutableComponent text = Component.object(new PlayerSprite(component, true));
+        Component text = PlaceHolderUtil.parseText("[%player:displayname%'s inventory]",player);
+        HoverEvent hoverEvent = new HoverEvent.ShowText(text);
 
-        return text.withStyle(Style.EMPTY.withClickEvent(clickEvent).withHoverEvent(hoverEvent));
+        return text.copy().withStyle(Style.EMPTY.withClickEvent(clickEvent).withHoverEvent(hoverEvent));
     }
 
     public MutableComponent SHOW_ENDER_CHEST(StyleParameter parameter){
@@ -395,17 +373,10 @@ public class StyleRegistry {
         InventoryManager.putEnderChest(player);
 
         ClickEvent clickEvent = new ClickEvent.RunCommand("/embellish-chat open "+player.getUUID());
-        HoverEvent hoverEvent = new HoverEvent.ShowText(Component.literal(player.getName().getString() + "'s ender chest"));
-        ResolvableProfile component = ResolvableProfile.createResolved(player.getGameProfile());
-        MutableComponent text = Component.object(new PlayerSprite(component, true));
+        Component text = PlaceHolderUtil.parseText("[%player:displayname%'s ender chest]",player);
+        HoverEvent hoverEvent = new HoverEvent.ShowText(text);
 
-        return text.withStyle(Style.EMPTY.withClickEvent(clickEvent).withHoverEvent(hoverEvent));
-    }
-
-    public MutableComponent ICON_PRESET(StyleParameter parameter) {
-        AtlasSprite icon = this.icon.get(parameter.getString());
-        if (icon!=null) return Component.object(icon);
-        else return parameter.segment();
+        return text.copy().withStyle(Style.EMPTY.withClickEvent(clickEvent).withHoverEvent(hoverEvent));
     }
 
     public MutableComponent JSON(StyleParameter parameter){

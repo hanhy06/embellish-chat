@@ -5,14 +5,18 @@ import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import io.github.hanhy06.embellishchat.EmbellishChat;
 import io.github.hanhy06.embellishchat.config.Config;
 import io.github.hanhy06.embellishchat.mention.data.Target;
-import io.github.hanhy06.embellishchat.util.*;
+import io.github.hanhy06.embellishchat.util.AdvancedChatUtil;
+import io.github.hanhy06.embellishchat.util.LuckPermsUtil;
+import io.github.hanhy06.embellishchat.util.MessageBlockedException;
+import io.github.hanhy06.embellishchat.util.NickNamesUtil;
 import me.lucko.fabric.api.permissions.v0.Permissions;
 import net.fabricmc.fabric.api.networking.v1.PlayerLookup;
+import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.commands.arguments.selector.EntitySelector;
 import net.minecraft.commands.arguments.selector.EntitySelectorParser;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Style;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
@@ -35,6 +39,10 @@ public class MentionRegistry {
     private final PlayerList playerList;
     private final Scoreboard scoreboard;
     private final Style colorTeam;
+
+    private final boolean isLuckPerms;
+    private final boolean isNickName;
+    private final boolean isAdvancedChat;
 
     private final EnumMap<MentionType, Function<MentionParameter, Target>> registries;
 
@@ -60,6 +68,10 @@ public class MentionRegistry {
                 entry(MentionType.PERMISSION,this::PERMISSION),
                 entry(MentionType.CUSTOM,this::CUSTOM)
         ));
+
+        this.isLuckPerms = FabricLoader.getInstance().isModLoaded("luckperms");
+        this.isNickName = FabricLoader.getInstance().isModLoaded("styled-nicknames");
+        this.isAdvancedChat = FabricLoader.getInstance().isModLoaded("advanced-chat");
     }
 
     public Target apply(MentionType mentionType,MentionParameter parameter){
@@ -116,7 +128,7 @@ public class MentionRegistry {
         PlayerTeam playerTeam = null;
         HashSet<ServerPlayer> players = new HashSet<>();
 
-        if (target == null && FabricUtil.isNickName) {
+        if (target == null && isNickName) {
             target = NickNamesUtil.getPlayerByNickName(parameter.option());
         }
 
@@ -132,9 +144,7 @@ public class MentionRegistry {
                 Style name = target.getDisplayName().getStyle();
                 style = name.applyTo(style);
             } else {
-                style = playerTeam.getColor()
-                        .map(teamColor -> Style.EMPTY.withColor(teamColor.rgb()))
-                        .orElse(style);
+                style = Style.EMPTY.withColor(playerTeam.getColor());
             }
         }
 
@@ -145,7 +155,7 @@ public class MentionRegistry {
     private Target WORLD(MentionParameter parameter){
         String worldName = parameter.option();
         MinecraftServer server = EmbellishChat.SERVER;
-        Identifier worldId = Identifier.tryParse(worldName);
+        ResourceLocation worldId = ResourceLocation.tryParse(worldName);
 
         if (worldId == null) {
             throw new MessageBlockedException("Invalid world ID.");
@@ -155,7 +165,7 @@ public class MentionRegistry {
         ServerLevel targetLevel = server.getLevel(worldKey);
 
         if (targetLevel != null) {
-            HashSet<ServerPlayer> players = new HashSet<>(PlayerLookup.level(targetLevel));
+            HashSet<ServerPlayer> players = new HashSet<>(PlayerLookup.world(targetLevel));
             return Target.of(players,null);
         } else {
             throw new MessageBlockedException("World not found.");
@@ -163,7 +173,7 @@ public class MentionRegistry {
     }
 
     private Target LUCK_PERMS_GROUP(MentionParameter parameter){
-        if (FabricUtil.isLuckPerms) {
+        if (isLuckPerms) {
             HashSet<ServerPlayer> players = LuckPermsUtil.getGroupPlayers(parameter.option(),playerList.getPlayers());
             return Target.of(players,null);
         }else {
@@ -173,7 +183,7 @@ public class MentionRegistry {
     }
 
     private Target ADVANCED_CHAT_CHANNEL(MentionParameter parameter){
-        if (FabricUtil.isAdvancedChat) {
+        if (isAdvancedChat) {
             HashSet<ServerPlayer> players = AdvancedChatUtil.getChannelPlayers(parameter.option(),parameter.player(),playerList.getPlayers());
             return Target.of(players,null);
         }else {

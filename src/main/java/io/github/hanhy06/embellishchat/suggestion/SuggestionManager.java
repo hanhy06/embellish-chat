@@ -1,18 +1,17 @@
 package io.github.hanhy06.embellishchat.suggestion;
 
 import com.mojang.authlib.GameProfile;
-import com.mojang.blaze3d.platform.InputConstants;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
-import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.ChatScreen;
 
-import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.multiplayer.PlayerInfo;
 import net.minecraft.util.Mth;
+import org.lwjgl.glfw.GLFW;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -99,7 +98,7 @@ public class SuggestionManager {
                 activeCandidate.addAll(
                         minecraft.getConnection().getOnlinePlayers().stream()
                                 .map(PlayerInfo::getProfile)
-                                .map(GameProfile::name)
+                                .map(GameProfile::getName)
                                 .map(name -> "@"+name)
                                 .filter(name -> token.length() <= name.length() && name.regionMatches(true, 0, token, 0, token.length()))
                                 .toList()
@@ -110,7 +109,7 @@ public class SuggestionManager {
         open = !activeCandidate.isEmpty();
     }
 
-    public void render(GuiGraphicsExtractor graphics) {
+    public void render(GuiGraphics graphics) {
         if (!open) return;
 
         Font font = chatScreen.getFont();
@@ -137,14 +136,14 @@ public class SuggestionManager {
                 graphics.fill(left + 1,y - 1,right - 1,y + LINE_HEIGHT - 1,SELECTED_FILL_COLOR);
             }
 
-            graphics.text(font,activeCandidate.get(index),left + 4,y,TEXT_COLOR);
+            graphics.drawString(font,activeCandidate.get(index),left + 4,y,TEXT_COLOR);
         }
     }
 
-    public boolean keyPressed(KeyEvent event){
+    public boolean keyPressed(int keyCode){
         if (!open) return false;
 
-        if (event.key() == InputConstants.KEY_TAB){
+        if (keyCode == GLFW.GLFW_KEY_TAB){
             select(selectedIndex + 1);
             String candidate = activeCandidate.get(selectedIndex);
 
@@ -165,12 +164,12 @@ public class SuggestionManager {
         }
 
 
-        if (event.key() == InputConstants.KEY_DOWN) {
+        if (keyCode == GLFW.GLFW_KEY_DOWN) {
             select(selectedIndex + 1);
             return true;
         }
 
-        if (event.key() == InputConstants.KEY_UP) {
+        if (keyCode == GLFW.GLFW_KEY_UP) {
             select(selectedIndex - 1);
             return true;
         }
