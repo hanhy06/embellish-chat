@@ -5,7 +5,6 @@ import eu.pb4.placeholders.api.PlaceholderResult;
 import eu.pb4.placeholders.api.Placeholders;
 import eu.pb4.placeholders.api.ServerPlaceholderContext;
 import eu.pb4.placeholders.api.node.TextNode;
-import eu.pb4.placeholders.api.parsers.LegacyFormattingParser;
 import eu.pb4.placeholders.api.parsers.TagParser;
 import io.github.hanhy06.embellishchat.EmbellishChat;
 import net.minecraft.network.chat.Component;
@@ -19,46 +18,32 @@ import java.util.Map;
 import java.util.UUID;
 
 public class PlaceHolderUtil {
-    private static final Map<UUID, String> placeholders = new HashMap<>();
+    private static final Map<UUID,String> placeholders = new HashMap<>();
 
-    public static void put(UUID uuid, String string) {
-        placeholders.put(uuid, string);
+    public static void put(UUID uuid,String string){
+        placeholders.put(uuid,string);
     }
 
-    public static void remove(UUID uuid) {
+    public static void remove(UUID uuid){
         placeholders.remove(uuid);
     }
 
-    public static void registerPlaceholder() {
+    public static void registerPlaceholder(){
         placeholders.clear();
 
-        Placeholders.registerServer(Identifier.fromNamespaceAndPath(EmbellishChat.MOD_ID, "content"), (context, string) -> {
+        Placeholders.registerServer(Identifier.fromNamespaceAndPath(EmbellishChat.MOD_ID,"content"),(context, string) -> {
             Player player = context.player();
             if (player == null) return PlaceholderResult.invalid("no player");
-            return PlaceholderResult.value(placeholders.getOrDefault(player.getUUID(),""));
-        });
-
-        Placeholders.registerServer(Identifier.fromNamespaceAndPath(EmbellishChat.MOD_ID, "prefix"), (context, string) -> {
-            ServerPlayer player = context.serverPlayer();
-            if (!FabricUtil.isLuckPerms) return PlaceholderResult.invalid("no luckperms");
-            if (player == null) return PlaceholderResult.invalid("no player");
-            return PlaceholderResult.value(parseAffix(LuckPermsUtil.getPrefix(player),player));
-        });
-
-        Placeholders.registerServer(Identifier.fromNamespaceAndPath(EmbellishChat.MOD_ID, "suffix"), (context, string) -> {
-            ServerPlayer player = context.serverPlayer();
-            if (!FabricUtil.isLuckPerms) return PlaceholderResult.invalid("no luckperms");
-            if (player == null) return PlaceholderResult.invalid("no player");
-            return PlaceholderResult.value(parseAffix(LuckPermsUtil.getSuffix(player),player));
+            return PlaceholderResult.value(placeholders.get(player.getUUID()));
         });
     }
 
-    public static Component parseTag(String text) {
+    public static Component parseTag(String text){
         if (text.isEmpty()) return Component.literal(text);
         return TagParser.DEFAULT.parseComponent(text, ParserContext.of());
     }
 
-    public static Component parseText(String text, ServerPlayer player) {
+    public static Component parseText(String text, ServerPlayer player){
         if (text.isEmpty()) return Component.literal(text);
 
         ParserContext context;
@@ -71,21 +56,7 @@ public class PlaceHolderUtil {
         return taggedText.toComponent(context);
     }
 
-    public static Component parseAffix(String text, ServerPlayer player) {
-        if (text.isEmpty()) return Component.literal(text);
-
-        ParserContext context;
-        if (player != null) context = ServerPlaceholderContext.of(player).asParserContext();
-        else context = ServerPlaceholderContext.of(EmbellishChat.SERVER).asParserContext();
-
-        TextNode placeholderText = Placeholders.SERVER_PLACEHOLDER_PARSER.parseNode(text);
-        TextNode taggedText = TagParser.DEFAULT.parseNode(placeholderText);
-        taggedText = LegacyFormattingParser.ALL.parseNode(taggedText);
-
-        return taggedText.toComponent(context);
-    }
-
-    public static String parsePlaceholder(String text, ServerPlayer player) {
+    public static String parsePlaceholder(String text, ServerPlayer player){
         if (text.isEmpty()) return text;
 
         ParserContext context;
@@ -97,7 +68,7 @@ public class PlaceHolderUtil {
         return placeholderText.toComponent(context).getString();
     }
 
-    public static MutableComponent parsePlaceholder(MutableComponent text, ServerPlayer player) {
+    public static MutableComponent parsePlaceholder(MutableComponent text, ServerPlayer player){
         ParserContext context;
         if (player != null) context = ServerPlaceholderContext.of(player).asParserContext();
         else context = ServerPlaceholderContext.of(EmbellishChat.SERVER).asParserContext();

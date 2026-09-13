@@ -60,12 +60,12 @@ const emptyMentionRule = () => ({
 });
 
 const normalizeConfig = (value) => ({
-  version: value.version ?? "3.8.0",
+  version: value.version ?? "3.6.0",
   delimiter: value.delimiter ?? ",",
   timestamp: value.timestamp ?? "yyyy-MM-dd HH:mm:ss",
   command_alias: value.command_alias ?? "ec",
   url_color: value.url_color ?? "#0000EE",
-  team_color: value.team_color === null ? null : value.team_color ?? "#FF55FF",
+  team_color: value.team_color ?? "#FF55FF",
   notify_command_enabled: value.notify_command_enabled ?? true,
   notify_mention_enabled: value.notify_mention_enabled ?? true,
   require_same_channel: value.require_same_channel ?? true,
@@ -75,11 +75,11 @@ const normalizeConfig = (value) => ({
 });
 
 const normalizePresets = (value) => ({
-  message_header: value.message_header ?? {},
+  prefix: value.prefix ?? value.prefixes ?? {},
   whitelist: value.whitelist ?? [],
   icon: value.icon ?? {},
   item: value.item ?? {},
-  color: value.color ?? {}
+  color: value.color ?? value.colors ?? {}
 });
 
 const normalizeStyleRule = (rule) => ({
@@ -97,25 +97,31 @@ const normalizeStyles = (value) => ({
   )
 });
 
-const normalizeMentionRule = (rule) => ({
-  pattern: rule.pattern ?? "",
-  comment: rule.comment ?? "",
-  title: rule.title ?? "%player:displayname% mentioned you",
-  cooldown: rule.cooldown ?? 0,
-  onlyTarget: rule.onlyTarget ?? false,
-  sound: rule.sound === null ? null : {
-    ...emptySound(),
-    ...(rule.sound ?? {})
-  },
-  mentions: (rule.mentions ?? []).map((mention) => ({
-    mentionType: mention.mentionType ?? "PLAYER",
-    preset: mention.preset ?? ""
-  })),
-  styles: (rule.styles ?? []).map((style) => ({
-    styleType: style.styleType ?? "BOLD",
-    preset: style.preset ?? ""
-  }))
-});
+const normalizeMentionRule = (rule) => {
+  const sound = typeof rule.sound === "string"
+    ? { id: rule.sound, category: "UI", volume: 1, pitch: rule.pitch ?? 1 }
+    : rule.sound;
+
+  return {
+    pattern: rule.pattern ?? "",
+    comment: rule.comment ?? "",
+    title: rule.title ?? "%player:displayname% mentioned you",
+    cooldown: rule.cooldown ?? 0,
+    onlyTarget: rule.onlyTarget ?? false,
+    sound: {
+      ...emptySound(),
+      ...(sound ?? {})
+    },
+    mentions: (rule.mentions ?? []).map((mention) => ({
+      mentionType: mention.mentionType ?? "PLAYER",
+      preset: mention.preset ?? ""
+    })),
+    styles: (rule.styles ?? []).map((style) => ({
+      styleType: style.styleType ?? "BOLD",
+      preset: style.preset ?? ""
+    }))
+  };
+};
 
 const normalizeMentions = (value) => ({
   mention_rules: Object.fromEntries(
@@ -123,7 +129,8 @@ const normalizeMentions = (value) => ({
   )
 });
 
-const downloadJsonFile = (name, content) => {
+const stringify = (value) => JSON.stringify(value, null, 2);
+const kebabDownload = (name, content) => {
   const blob = new Blob([content], { type: "application/json" });
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement("a");
@@ -143,8 +150,9 @@ const regexState = (pattern) => {
   }
 };
 
-const inputClass = "w-full px-3 py-2 text-sm outline-none";
-const buttonClass = "win-button text-sm";
+const shellClass = "rounded-xl border border-neutral-800 bg-neutral-950";
+const inputClass = "w-full rounded-lg border border-neutral-800 bg-neutral-950 px-3 py-2 text-sm text-neutral-100 outline-none transition focus:border-neutral-600";
+const buttonClass = "rounded-lg border border-neutral-800 bg-neutral-950 px-3 py-2 text-sm font-medium text-neutral-100 transition hover:border-neutral-600 hover:bg-neutral-900";
 const escapeRawText = (value) => (value ?? "").replace(/\\/g, "\\\\").replace(/\n/g, "\\n").replace(/\r/g, "\\r").replace(/\t/g, "\\t");
 const unescapeRawText = (value) => {
   let output = "";
@@ -188,8 +196,8 @@ const unescapeRawText = (value) => {
   return output;
 };
 
-function Button({ children, className = "", variant = "default", ...props }) {
-  return <button type="button" className={`${buttonClass} ${variant === "primary" ? "is-primary" : ""} ${className}`} {...props}>{children}</button>;
+function Button({ children, className = "", ...props }) {
+  return <button type="button" className={`${buttonClass} ${className}`} {...props}>{children}</button>;
 }
 
 function Field({ label, children }) {
@@ -234,7 +242,7 @@ function Select({ options, className = "", ...props }) {
 
 function Toggle({ label, checked, onChange }) {
   return (
-    <label className="toggle-row flex items-center justify-between gap-3 px-3 py-2 text-sm text-neutral-100">
+    <label className="flex items-center justify-between gap-3 rounded-lg border border-neutral-800 bg-neutral-950 px-3 py-2 text-sm text-neutral-100">
       <span>{label}</span>
       <input type="checkbox" checked={checked} onChange={(event) => onChange(event.target.checked)} />
     </label>
@@ -243,22 +251,22 @@ function Toggle({ label, checked, onChange }) {
 
 function Section({ title, description, actions, children }) {
   return (
-    <section className="settings-section">
-      <div className="section-header flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
+    <section className={`${shellClass} p-4 md:p-5`}>
+      <div className="mb-4 flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
         <div className="min-w-0 flex-1">
           <h2 className="text-lg font-semibold text-white">{title}</h2>
           {description && <p className="mt-1 text-sm text-neutral-400">{description}</p>}
         </div>
         {actions && <div className="flex w-full items-start justify-start xl:w-auto xl:flex-none xl:justify-end">{actions}</div>}
       </div>
-      <div className="section-body space-y-4">{children}</div>
+      <div className="space-y-4">{children}</div>
     </section>
   );
 }
 
 function Subsection({ title, description, actions, children }) {
   return (
-    <div className="subsection-panel">
+    <div className="rounded-lg border border-neutral-800 bg-black/30 p-3">
       <div className="mb-3 flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
         <div>
           <div className="text-xs font-medium uppercase tracking-wide text-neutral-400">{title}</div>
@@ -273,19 +281,19 @@ function Subsection({ title, description, actions, children }) {
 
 function ColorInput({ value, onChange, placeholder = "#RRGGBB" }) {
   return (
-    <div className="color-input flex items-center gap-2 border border-neutral-800 bg-neutral-950">
+    <div className="flex items-center gap-3 rounded-lg border border-neutral-800 bg-neutral-950 px-3 py-2">
       <input
         type="color"
         value={value || "#000000"}
         onChange={(event) => onChange(event.target.value)}
-        className="shrink-0 cursor-pointer border border-neutral-700 bg-transparent"
+        className="h-10 w-12 shrink-0 cursor-pointer rounded-md border border-neutral-700 bg-transparent p-1"
       />
       <input
         type="text"
         value={value || ""}
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
-        className="min-w-0 w-full border-0 bg-transparent px-0 py-0 text-sm text-neutral-100 outline-none"
+        className="w-full border-0 bg-transparent px-0 py-0 text-sm text-neutral-100 outline-none"
         style={{ color: value || undefined }}
       />
     </div>
@@ -330,7 +338,7 @@ function ColorPresetEditor({ values, onAdd, onRename, onChange, onRemove }) {
                 type="color"
                 value={value || "#000000"}
                 onChange={(event) => onChange(key, event.target.value)}
-                className="control-color-swatch cursor-pointer border border-neutral-700 bg-transparent"
+                className="h-11 w-14 cursor-pointer rounded-lg border border-neutral-700 bg-transparent p-1"
               />
               <Input
                 value={key}
@@ -537,7 +545,7 @@ function StyleRuleCard({ rule, onChange, onRemove, index }) {
             <Input value={rule.pattern} onChange={(event) => onChange({ ...rule, pattern: event.target.value })} />
           </Field>
           <Field label="Regex">
-            <div className={`validation-status border px-3 text-sm ${state ? state.ok ? "border-emerald-900 bg-emerald-950/40 text-emerald-300" : "border-red-900 bg-red-950/40 text-red-300" : "border-neutral-800 bg-neutral-950 text-neutral-500"}`}>
+            <div className={`rounded-lg border px-3 py-2 text-sm ${state ? state.ok ? "border-emerald-900 bg-emerald-950/40 text-emerald-300" : "border-red-900 bg-red-950/40 text-red-300" : "border-neutral-800 bg-neutral-950 text-neutral-500"}`}>
               {state ? state.text : "Enter a pattern"}
             </div>
           </Field>
@@ -580,7 +588,7 @@ function MentionRuleCard({ rule, onChange, onRemove, index }) {
             <Input value={rule.pattern} onChange={(event) => onChange({ ...rule, pattern: event.target.value })} />
           </Field>
           <Field label="Regex">
-            <div className={`validation-status border px-3 text-sm ${state ? state.ok ? "border-emerald-900 bg-emerald-950/40 text-emerald-300" : "border-red-900 bg-red-950/40 text-red-300" : "border-neutral-800 bg-neutral-950 text-neutral-500"}`}>
+            <div className={`rounded-lg border px-3 py-2 text-sm ${state ? state.ok ? "border-emerald-900 bg-emerald-950/40 text-emerald-300" : "border-red-900 bg-red-950/40 text-red-300" : "border-neutral-800 bg-neutral-950 text-neutral-500"}`}>
               {state ? state.text : "Enter a pattern"}
             </div>
           </Field>
@@ -605,23 +613,20 @@ function MentionRuleCard({ rule, onChange, onRemove, index }) {
       </Subsection>
 
       <Subsection title="Sound" description="Notification sound for matched mentions">
-        <Toggle label="Sound enabled" checked={rule.sound !== null} onChange={(enabled) => onChange({ ...rule, sound: enabled ? emptySound() : null })} />
-        {rule.sound !== null && (
-          <div className="mt-3 grid gap-3 md:grid-cols-4">
-            <Field label="Sound Id">
-              <Input value={rule.sound.id} onChange={(event) => onChange({ ...rule, sound: { ...rule.sound, id: event.target.value } })} />
-            </Field>
-            <Field label="Category">
-              <Select options={SOUND_CATEGORIES} value={rule.sound.category} onChange={(event) => onChange({ ...rule, sound: { ...rule.sound, category: event.target.value } })} />
-            </Field>
-            <Field label="Volume">
-              <Input type="number" step="0.1" value={rule.sound.volume} onChange={(event) => onChange({ ...rule, sound: { ...rule.sound, volume: Number(event.target.value) || 0 } })} />
-            </Field>
-            <Field label="Pitch">
-              <Input type="number" step="0.1" value={rule.sound.pitch} onChange={(event) => onChange({ ...rule, sound: { ...rule.sound, pitch: Number(event.target.value) || 0 } })} />
-            </Field>
-          </div>
-        )}
+        <div className="grid gap-3 md:grid-cols-4">
+          <Field label="Sound Id">
+            <Input value={rule.sound.id} onChange={(event) => onChange({ ...rule, sound: { ...rule.sound, id: event.target.value } })} />
+          </Field>
+          <Field label="Category">
+            <Select options={SOUND_CATEGORIES} value={rule.sound.category} onChange={(event) => onChange({ ...rule, sound: { ...rule.sound, category: event.target.value } })} />
+          </Field>
+          <Field label="Volume">
+            <Input type="number" step="0.1" value={rule.sound.volume} onChange={(event) => onChange({ ...rule, sound: { ...rule.sound, volume: Number(event.target.value) || 0 } })} />
+          </Field>
+          <Field label="Pitch">
+            <Input type="number" step="0.1" value={rule.sound.pitch} onChange={(event) => onChange({ ...rule, sound: { ...rule.sound, pitch: Number(event.target.value) || 0 } })} />
+          </Field>
+        </div>
       </Subsection>
 
       <Subsection
@@ -676,9 +681,9 @@ function PermissionRuleEditor({ title, description, groups, onChange, createRule
       title={title}
       description={description}
       actions={
-        <div className="permission-group-create">
-          <Input value={newKey} placeholder="permission node" onChange={(event) => setNewKey(event.target.value)} />
-          <Button variant="primary" onClick={addGroup}>Add Group</Button>
+        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-end">
+          <Input className="md:min-w-[24rem]" value={newKey} placeholder="permission node" onChange={(event) => setNewKey(event.target.value)} />
+          <Button className="h-[42px] border-neutral-600 bg-white px-3 text-black hover:bg-neutral-200" onClick={addGroup}>Add Group</Button>
         </div>
       }
     >
@@ -693,11 +698,11 @@ function PermissionRuleEditor({ title, description, groups, onChange, createRule
                   <Input className="mt-2" value={key} onChange={(event) => renameGroup(key, event.target.value)} />
                 </div>
                 <div className="flex flex-wrap items-end gap-2 xl:pb-[1px]">
-                  <div className="rule-count border border-neutral-800 bg-neutral-950 px-3 text-sm text-neutral-300">
+                  <div className="rounded-lg border border-neutral-800 bg-neutral-950 px-3 py-2 text-sm text-neutral-300">
                     {groups[key].length} rule{groups[key].length === 1 ? "" : "s"}
                   </div>
-                  <Button variant="primary" onClick={() => setRules(key, [...groups[key], createRule()])}>Add Rule</Button>
-                  <Button className="border-red-900 bg-red-950/40 text-red-200 hover:bg-red-950" onClick={() => removeGroup(key)}>Remove Group</Button>
+                  <Button className="h-[42px] border-neutral-600 bg-white px-3 text-black hover:bg-neutral-200" onClick={() => setRules(key, [...groups[key], createRule()])}>Add Rule</Button>
+                  <Button className="h-[42px] border-red-900 bg-red-950/40 px-3 text-red-200 hover:bg-red-950" onClick={() => removeGroup(key)}>Remove Group</Button>
                 </div>
               </div>
             </div>
@@ -788,16 +793,15 @@ function ConfigEditor() {
   const dataMap = useMemo(() => ({ config, styles, mentions, presets }), [config, styles, mentions, presets]);
 
   useEffect(() => {
-    if (dataMap[jsonFile]) setJsonText(JSON.stringify(dataMap[jsonFile], null, 2));
+    if (dataMap[jsonFile]) setJsonText(stringify(dataMap[jsonFile]));
   }, [jsonFile, dataMap]);
 
   if (!config || !styles || !mentions || !presets) {
     return (
-      <div className="config-app grid min-h-screen place-items-center px-4 py-10">
-        <div className="settings-section w-full max-w-xl p-7">
-          <div className="brand-mark mb-5">E</div>
-          <h1 className="text-2xl font-normal">Config Generator</h1>
-          <p className="mt-2 text-sm text-neutral-400">{message || "Loading configuration files..."}</p>
+      <div className="min-h-screen bg-black px-4 py-10 text-neutral-100">
+        <div className="mx-auto max-w-5xl rounded-2xl border border-neutral-800 bg-neutral-950 p-6">
+          <h1 className="text-2xl font-semibold">Config Generator</h1>
+          <p className="mt-2 text-sm text-neutral-400">{message || "Loading..."}</p>
         </div>
       </div>
     );
@@ -897,7 +901,7 @@ function ConfigEditor() {
     setMessage(`${jsonFile}.json copied.`);
   };
 
-  const downloadJson = () => downloadJsonFile(jsonFile, jsonText);
+  const downloadJson = () => kebabDownload(jsonFile, jsonText);
   const resetAll = () => {
     if (!defaults) return;
     setConfig(clone(defaults.config));
@@ -908,53 +912,35 @@ function ConfigEditor() {
   };
 
   const tabs = [
-    { id: "general", label: "General", icon: "⚙", description: "Global options, presets, and player lists" },
-    { id: "styles", label: "Styles", icon: "A", description: "Permission-based chat formatting rules" },
-    { id: "mentions", label: "Mentions", icon: "@", description: "Mention targets and notification behavior" },
-    { id: "json", label: "Import / Export", icon: "{ }", description: "Review, import, copy, or download JSON" }
+    ["general", "General"],
+    ["styles", "Styles"],
+    ["mentions", "Mentions"],
+    ["json", "JSON"]
   ];
-  const activeTab = tabs.find((item) => item.id === tab);
 
   return (
-    <div className="config-app">
-      <div className="config-layout">
-        <aside className="config-sidebar">
-          <div className="brand">
-            <div className="brand-mark">E</div>
+    <div className="min-h-screen bg-black px-3 py-6 text-neutral-100 md:px-4 md:py-8 xl:px-5">
+      <div className="mx-auto max-w-[108rem] space-y-4">
+        <header className={`${shellClass} p-4 md:p-5`}>
+          <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
             <div>
-              <div className="brand-kicker">Embellish Chat</div>
-              <div className="brand-title">Config Generator</div>
+              <div className="text-xs uppercase tracking-[0.2em] text-neutral-500">Embellish Chat</div>
+              <h1 className="mt-2 text-3xl font-semibold">Config Generator</h1>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {tabs.map(([id, label]) => (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => setTab(id)}
+                  className={`rounded-lg px-3 py-2 text-sm font-medium transition ${tab === id ? "bg-white text-black" : "border border-neutral-800 bg-neutral-950 text-neutral-200 hover:border-neutral-600"}`}
+                >
+                  {label}
+                </button>
+              ))}
             </div>
           </div>
-
-          <nav className="config-nav" aria-label="Configuration sections">
-            {tabs.map(({ id, label, icon }) => (
-              <button
-                key={id}
-                type="button"
-                onClick={() => setTab(id)}
-                className={`nav-button ${tab === id ? "is-active" : ""}`}
-                aria-current={tab === id ? "page" : undefined}
-              >
-                <span className="nav-icon" aria-hidden="true">{icon}</span>
-                <span>{label}</span>
-              </button>
-            ))}
-          </nav>
-
-          <div className="sidebar-note">
-            Changes stay in this browser until you export them. Use Import / Export to save a JSON file.
-          </div>
-        </aside>
-
-        <main className="config-main">
-          <header className="page-heading">
-            <div className="page-eyebrow">Settings</div>
-            <h1 className="page-title">{activeTab.label}</h1>
-            <p className="page-description">{activeTab.description}</p>
-          </header>
-
-          <div className="config-content space-y-4">
+        </header>
 
         {tab === "general" && (
           <>
@@ -965,12 +951,7 @@ function ConfigEditor() {
                 <Field label="Timestamp"><Input value={config.timestamp} onChange={(event) => setConfig({ ...config, timestamp: event.target.value })} /></Field>
                 <Field label="Command Alias"><Input value={config.command_alias} onChange={(event) => setConfig({ ...config, command_alias: event.target.value })} /></Field>
                 <Field label="URL Color"><ColorInput value={config.url_color} onChange={(value) => setConfig({ ...config, url_color: value })} /></Field>
-                <Field label="Team Color">
-                  <div className="space-y-2">
-                    <Toggle label="Automatic color enabled" checked={config.team_color !== null} onChange={(enabled) => setConfig({ ...config, team_color: enabled ? "#FF55FF" : null })} />
-                    {config.team_color !== null && <ColorInput value={config.team_color} onChange={(value) => setConfig({ ...config, team_color: value })} />}
-                  </div>
-                </Field>
+                <Field label="Team Color"><ColorInput value={config.team_color} onChange={(value) => setConfig({ ...config, team_color: value })} /></Field>
               </div>
               <div className="grid gap-3 md:grid-cols-4">
                 <Toggle label="Notify command enabled" checked={config.notify_command_enabled} onChange={(value) => setConfig({ ...config, notify_command_enabled: value })} />
@@ -980,20 +961,20 @@ function ConfigEditor() {
               </div>
             </Section>
 
-            <Section title="Presets" description="message header, whitelist, icon, item, and color">
+            <Section title="Presets" description="prefix, whitelist, icon, item, and color">
               <div className="space-y-5">
                 <KeyValueEditor
-                  title="Message Headers"
-                  values={presets.message_header}
-                  keyPlaceholder="permission node"
-                  valuePlaceholder="message header"
-                  onAdd={() => setPresets({ ...presets, message_header: { ...presets.message_header, "": "" } })}
-                  onRename={(oldKey, newKey) => setPresets({ ...presets, message_header: renameObjectKey(presets.message_header, oldKey, newKey) })}
-                  onChange={(key, value) => setPresets({ ...presets, message_header: { ...presets.message_header, [key]: value } })}
+                  title="Prefixes"
+                  values={presets.prefix}
+                  keyPlaceholder="key"
+                  valuePlaceholder="value"
+                  onAdd={() => setPresets({ ...presets, prefix: { ...presets.prefix, [`key-${Object.keys(presets.prefix).length + 1}`]: "" } })}
+                  onRename={(oldKey, newKey) => setPresets({ ...presets, prefix: renameObjectKey(presets.prefix, oldKey, newKey) })}
+                  onChange={(key, value) => setPresets({ ...presets, prefix: { ...presets.prefix, [key]: value } })}
                   onRemove={(key) => {
-                    const next = { ...presets.message_header };
+                    const next = { ...presets.prefix };
                     delete next[key];
-                    setPresets({ ...presets, message_header: next });
+                    setPresets({ ...presets, prefix: next });
                   }}
                 />
                 <ListTextEditor
@@ -1074,7 +1055,7 @@ function ConfigEditor() {
             groups={styles.style_rules}
             onChange={(style_rules) => setStyles({ ...styles, style_rules })}
             createRule={emptyStyleRule}
-            renderRule={({ rule, index, onChange, onRemove }) => <StyleRuleCard rule={rule} index={index} onChange={onChange} onRemove={onRemove} />}
+            renderRule={({ rule, onChange, onRemove }) => <StyleRuleCard rule={rule} onChange={onChange} onRemove={onRemove} />}
           />
         )}
 
@@ -1085,7 +1066,7 @@ function ConfigEditor() {
             groups={mentions.mention_rules}
             onChange={(mention_rules) => setMentions({ ...mentions, mention_rules })}
             createRule={emptyMentionRule}
-            renderRule={({ rule, index, onChange, onRemove }) => <MentionRuleCard rule={rule} index={index} onChange={onChange} onRemove={onRemove} />}
+            renderRule={({ rule, onChange, onRemove }) => <MentionRuleCard rule={rule} onChange={onChange} onRemove={onRemove} />}
           />
         )}
 
@@ -1104,8 +1085,6 @@ function ConfigEditor() {
             fileInputRef={fileInputRef}
           />
         )}
-          </div>
-        </main>
       </div>
     </div>
   );
