@@ -1,4 +1,4 @@
-const { useEffect, useMemo, useRef, useState } = React;
+const { useEffect, useMemo, useRef, useState } = preactHooks;
 
 const FILES = {
   config: "defaults/config.json",
@@ -32,7 +32,37 @@ const SOUND_CATEGORIES = [
 ];
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const EDITOR_ID = Symbol("editorId");
+let nextEditorId = 1;
+const editorId = (value) => value[EDITOR_ID] ?? (value[EDITOR_ID] = `editor-${nextEditorId++}`);
 const clone = (value) => JSON.parse(JSON.stringify(value));
+const normalizeHexColor = (value) => typeof value === "string" ? value.toUpperCase() : value;
+const moveItem = (items, from, to) => {
+  const next = [...items];
+  const [item] = next.splice(from, 1);
+  next.splice(to, 0, item);
+  return next;
+};
+
+const useSortable = (options, dependencies = []) => {
+  const elementRef = useRef(null);
+  const optionsRef = useRef(options);
+  optionsRef.current = options;
+
+  useEffect(() => {
+    if (!elementRef.current || !window.Sortable) return undefined;
+    const sortable = window.Sortable.create(elementRef.current, {
+      animation: 120,
+      handle: ".drag-handle",
+      ghostClass: "drag-ghost",
+      chosenClass: "drag-chosen",
+      ...optionsRef.current
+    });
+    return () => sortable.destroy();
+  }, dependencies);
+
+  return elementRef;
+};
 const fetchJson = async (path) => {
   const response = await fetch(path, { cache: "no-store" });
   if (!response.ok) throw new Error(`Failed to load ${path}`);
@@ -64,8 +94,8 @@ const normalizeConfig = (value) => ({
   delimiter: value.delimiter ?? ",",
   timestamp: value.timestamp ?? "yyyy-MM-dd HH:mm:ss",
   command_alias: value.command_alias ?? "ec",
-  url_color: value.url_color ?? "#0000EE",
-  team_color: value.team_color === null ? null : value.team_color ?? "#FF55FF",
+  url_color: normalizeHexColor(value.url_color ?? "#0000EE"),
+  team_color: value.team_color === null ? null : normalizeHexColor(value.team_color ?? "#FF55FF"),
   notify_command_enabled: value.notify_command_enabled ?? true,
   notify_mention_enabled: value.notify_mention_enabled ?? true,
   require_same_channel: value.require_same_channel ?? true,
@@ -79,7 +109,7 @@ const normalizePresets = (value) => ({
   whitelist: value.whitelist ?? [],
   icon: value.icon ?? {},
   item: value.item ?? {},
-  color: value.color ?? {}
+  color: Object.fromEntries(Object.entries(value.color ?? {}).map(([key, color]) => [key, normalizeHexColor(color)]))
 });
 
 const normalizeStyleRule = (rule) => ({
@@ -236,7 +266,7 @@ function Toggle({ label, checked, onChange }) {
   return (
     <label className="toggle-row flex items-center justify-between gap-3 px-3 py-2 text-sm text-neutral-100">
       <span>{label}</span>
-      <input type="checkbox" checked={checked} onChange={(event) => onChange(event.target.checked)} />
+      <input key={checked ? "checked" : "unchecked"} type="checkbox" checked={checked} onChange={(event) => onChange(event.target.checked)} />
     </label>
   );
 }
@@ -271,22 +301,24 @@ function Subsection({ title, description, actions, children }) {
   );
 }
 
-function ColorInput({ value, onChange, placeholder = "#RRGGBB" }) {
+function ColorInput({ value, onChange, placeholder = "#RRGGBB", disabled = false }) {
   return (
     <div className="color-input flex items-center gap-2 border border-neutral-800 bg-neutral-950">
       <input
         type="color"
         value={value || "#000000"}
-        onChange={(event) => onChange(event.target.value)}
+        onChange={(event) => onChange(normalizeHexColor(event.target.value))}
+        disabled={disabled}
         className="shrink-0 cursor-pointer border border-neutral-700 bg-transparent"
       />
       <input
         type="text"
         value={value || ""}
-        onChange={(event) => onChange(event.target.value)}
+        onChange={(event) => onChange(normalizeHexColor(event.target.value))}
+        disabled={disabled}
         placeholder={placeholder}
         className="min-w-0 w-full border-0 bg-transparent px-0 py-0 text-sm text-neutral-100 outline-none"
-        style={{ color: value || undefined }}
+        style={{ color: disabled ? undefined : value || undefined }}
       />
     </div>
   );
@@ -329,7 +361,7 @@ function ColorPresetEditor({ values, onAdd, onRename, onChange, onRemove }) {
               <input
                 type="color"
                 value={value || "#000000"}
-                onChange={(event) => onChange(key, event.target.value)}
+                onChange={(event) => onChange(key, normalizeHexColor(event.target.value))}
                 className="control-color-swatch cursor-pointer border border-neutral-700 bg-transparent"
               />
               <Input
@@ -345,7 +377,7 @@ function ColorPresetEditor({ values, onAdd, onRename, onChange, onRemove }) {
               <Input
                 value={value}
                 placeholder="#RRGGBB"
-                onChange={(event) => onChange(key, event.target.value)}
+                onChange={(event) => onChange(key, normalizeHexColor(event.target.value))}
                 className="font-mono"
               />
               <Button onClick={() => onRemove(key)}>Remove</Button>
@@ -487,11 +519,14 @@ function PlayerListEditor({ title, values, onAdd, onChange, onRemove, placeholde
 function StyleListEditor({ items, onChange }) {
   const update = (index, patch) => onChange(items.map((item, current) => current === index ? { ...item, ...patch } : item));
   const remove = (index) => onChange(items.filter((_, current) => current !== index));
+  const listRef = useSortable({ handle: ".action-drag-handle", onEnd: ({ oldIndex, newIndex }) => oldIndex !== newIndex && onChange(moveItem(items, oldIndex, newIndex)) }, [items]);
 
   return (
-    <div className="space-y-2">
+    <div ref={listRef} className="space-y-2 action-list">
       {items.map((item, index) => (
         <div key={index} className="grid gap-2 rounded-lg border border-neutral-800 bg-neutral-950 p-3 md:grid-cols-[1fr_2fr_auto]">
+          <button type="button" className="drag-handle action-drag-handle" title="Move style" aria-label={`Move style ${index + 1}`}>≡</button>
+          <span className="action-order">{index + 1}</span>
           <Select options={STYLE_TYPES} value={item.styleType} onChange={(event) => update(index, { styleType: event.target.value })} />
           <Input value={item.preset} placeholder="preset" onChange={(event) => update(index, { preset: event.target.value })} />
           <Button onClick={() => remove(index)}>Remove</Button>
@@ -504,13 +539,16 @@ function StyleListEditor({ items, onChange }) {
 function MentionTargetEditor({ items, onChange }) {
   const update = (index, patch) => onChange(items.map((item, current) => current === index ? { ...item, ...patch } : item));
   const remove = (index) => onChange(items.filter((_, current) => current !== index));
+  const listRef = useSortable({ handle: ".action-drag-handle", onEnd: ({ oldIndex, newIndex }) => oldIndex !== newIndex && onChange(moveItem(items, oldIndex, newIndex)) }, [items]);
 
   return (
-    <div className="space-y-2">
+    <div ref={listRef} className="space-y-2 action-list">
       {items.map((item, index) => (
         <div key={index} className="grid gap-2 rounded-lg border border-neutral-800 bg-neutral-950 p-3 md:grid-cols-[1fr_2fr_auto]">
+          <button type="button" className="drag-handle action-drag-handle" title="Move target" aria-label={`Move target ${index + 1}`}>≡</button>
+          <span className="action-order">{index + 1}</span>
           <Select options={MENTION_TYPES} value={item.mentionType} onChange={(event) => update(index, { mentionType: event.target.value })} />
-          <Input value={item.preset} placeholder="preset / option" onChange={(event) => update(index, { preset: event.target.value })} />
+          <Input value={item.preset} placeholder="preset" onChange={(event) => update(index, { preset: event.target.value })} />
           <Button onClick={() => remove(index)}>Remove</Button>
         </div>
       ))}
@@ -520,23 +558,42 @@ function MentionTargetEditor({ items, onChange }) {
 
 function StyleRuleCard({ rule, onChange, onRemove, index }) {
   const state = regexState(rule.pattern);
+  const [expanded, setExpanded] = useState(false);
 
   return (
-    <div className="space-y-3 rounded-xl border border-neutral-700 bg-neutral-900/80 p-4 shadow-[0_0_0_1px_rgba(255,255,255,0.02)]">
-      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-        <div className="min-w-0">
-          <div className="text-xs font-medium uppercase tracking-[0.18em] text-neutral-500">Style Rule {index + 1}</div>
-          <div className="mt-2 truncate font-mono text-sm text-neutral-200">{rule.pattern || "No pattern yet"}</div>
+    <div className="rule-card space-y-3 rounded-xl border border-neutral-700 bg-neutral-900/80 p-4">
+      <div
+        className="rule-summary"
+        role="button"
+        tabIndex="0"
+        aria-expanded={expanded}
+        onClick={() => setExpanded(!expanded)}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            setExpanded(!expanded);
+          }
+        }}
+      >
+        <button type="button" className="drag-handle rule-drag-handle" title="Move rule" aria-label={`Move style rule ${index + 1}`} onClick={(event) => event.stopPropagation()}>≡</button>
+        <div className="rule-order">{index + 1}</div>
+        <div className="rule-expand min-w-0">
+          <span className="truncate font-mono text-sm text-neutral-200">{rule.pattern || "No pattern yet"}</span>
+          <span className={`rule-status ${state?.ok ? "is-valid" : state ? "is-invalid" : ""}`}>{state ? state.ok ? "Syntax OK" : "Invalid" : "Incomplete"}</span>
+          <span aria-hidden="true">{expanded ? "▴" : "▾"}</span>
         </div>
-        <Button className="border-red-900 bg-red-950/40 text-red-200 hover:bg-red-950" onClick={onRemove}>Remove Rule</Button>
+        <div className="rule-actions">
+          <Button className="border-red-900 bg-red-950/40 text-red-200 hover:bg-red-950" onClick={(event) => { event.stopPropagation(); onRemove(); }}>Remove</Button>
+        </div>
       </div>
 
+      {expanded && <div className="rule-details space-y-3">
       <Subsection title="Matching" description="Regex pattern and validation">
         <div className="grid gap-3 md:grid-cols-2">
           <Field label="Pattern">
             <Input value={rule.pattern} onChange={(event) => onChange({ ...rule, pattern: event.target.value })} />
           </Field>
-          <Field label="Regex">
+          <Field label="Validation">
             <div className={`validation-status border px-3 text-sm ${state ? state.ok ? "border-emerald-900 bg-emerald-950/40 text-emerald-300" : "border-red-900 bg-red-950/40 text-red-300" : "border-neutral-800 bg-neutral-950 text-neutral-500"}`}>
               {state ? state.text : "Enter a pattern"}
             </div>
@@ -544,7 +601,7 @@ function StyleRuleCard({ rule, onChange, onRemove, index }) {
         </div>
       </Subsection>
 
-      <Subsection title="Comment" description="Raw text only. Escape sequences and formatting codes stay untouched.">
+      <Subsection title="Comment" description="Shown by the style help command; placeholders and text tags are parsed.">
         <Field label="Comment">
           <RawTextArea value={rule.comment} onValueChange={(comment) => onChange({ ...rule, comment })} />
         </Field>
@@ -557,55 +614,75 @@ function StyleRuleCard({ rule, onChange, onRemove, index }) {
       >
         <StyleListEditor items={rule.styles} onChange={(styles) => onChange({ ...rule, styles })} />
       </Subsection>
+      </div>}
     </div>
   );
 }
 
 function MentionRuleCard({ rule, onChange, onRemove, index }) {
   const state = regexState(rule.pattern);
+  const [expanded, setExpanded] = useState(false);
 
   return (
-    <div className="space-y-3 rounded-xl border border-neutral-700 bg-neutral-900/80 p-4 shadow-[0_0_0_1px_rgba(255,255,255,0.02)]">
-      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-        <div className="min-w-0">
-          <div className="text-xs font-medium uppercase tracking-[0.18em] text-neutral-500">Mention Rule {index + 1}</div>
-          <div className="mt-2 truncate font-mono text-sm text-neutral-200">{rule.pattern || "No pattern yet"}</div>
+    <div className="rule-card space-y-3 rounded-xl border border-neutral-700 bg-neutral-900/80 p-4">
+      <div
+        className="rule-summary"
+        role="button"
+        tabIndex="0"
+        aria-expanded={expanded}
+        onClick={() => setExpanded(!expanded)}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            setExpanded(!expanded);
+          }
+        }}
+      >
+        <button type="button" className="drag-handle rule-drag-handle" title="Move rule" aria-label={`Move mention rule ${index + 1}`} onClick={(event) => event.stopPropagation()}>≡</button>
+        <div className="rule-order">{index + 1}</div>
+        <div className="rule-expand min-w-0">
+          <span className="truncate font-mono text-sm text-neutral-200">{rule.pattern || "No pattern yet"}</span>
+          <span className={`rule-status ${state?.ok ? "is-valid" : state ? "is-invalid" : ""}`}>{state ? state.ok ? "Syntax OK" : "Invalid" : "Incomplete"}</span>
+          <span aria-hidden="true">{expanded ? "▴" : "▾"}</span>
         </div>
-        <Button className="border-red-900 bg-red-950/40 text-red-200 hover:bg-red-950" onClick={onRemove}>Remove Rule</Button>
+        <div className="rule-actions">
+          <Button className="border-red-900 bg-red-950/40 text-red-200 hover:bg-red-950" onClick={(event) => { event.stopPropagation(); onRemove(); }}>Remove</Button>
+        </div>
       </div>
 
-      <Subsection title="Matching" description="Regex pattern, title, and cooldown">
+      {expanded && <div className="rule-details space-y-3">
+      <Subsection title="Matching and Delivery" description="Regex matching, overlay feedback, cooldown, and message delivery">
         <div className="grid gap-3 md:grid-cols-2">
           <Field label="Pattern">
             <Input value={rule.pattern} onChange={(event) => onChange({ ...rule, pattern: event.target.value })} />
           </Field>
-          <Field label="Regex">
+          <Field label="Validation">
             <div className={`validation-status border px-3 text-sm ${state ? state.ok ? "border-emerald-900 bg-emerald-950/40 text-emerald-300" : "border-red-900 bg-red-950/40 text-red-300" : "border-neutral-800 bg-neutral-950 text-neutral-500"}`}>
               {state ? state.text : "Enter a pattern"}
             </div>
           </Field>
         </div>
         <div className="mt-3 grid gap-3 md:grid-cols-2">
-          <Field label="Title">
+          <Field label="Overlay Message">
             <Input value={rule.title} onChange={(event) => onChange({ ...rule, title: event.target.value })} />
           </Field>
-          <Field label="Cooldown">
+          <Field label="Cooldown (seconds)">
             <Input type="number" value={rule.cooldown} onChange={(event) => onChange({ ...rule, cooldown: Number(event.target.value) || 0 })} />
           </Field>
         </div>
         <div className="mt-3">
-          <Toggle label="Only target gets notified" checked={rule.onlyTarget} onChange={(onlyTarget) => onChange({ ...rule, onlyTarget })} />
+          <Toggle label="Send chat only to matched targets" checked={rule.onlyTarget} onChange={(onlyTarget) => onChange({ ...rule, onlyTarget })} />
         </div>
       </Subsection>
 
-      <Subsection title="Comment" description="Raw text only. Escape sequences and formatting codes stay untouched.">
+      <Subsection title="Comment" description="Shown by the mention help command; placeholders and text tags are parsed.">
         <Field label="Comment">
           <RawTextArea value={rule.comment} onValueChange={(comment) => onChange({ ...rule, comment })} />
         </Field>
       </Subsection>
 
       <Subsection title="Sound" description="Notification sound for matched mentions">
-        <Toggle label="Sound enabled" checked={rule.sound !== null} onChange={(enabled) => onChange({ ...rule, sound: enabled ? emptySound() : null })} />
+        <Toggle label="Play notification sound" checked={rule.sound !== null} onChange={(enabled) => onChange({ ...rule, sound: enabled ? emptySound() : null })} />
         {rule.sound !== null && (
           <div className="mt-3 grid gap-3 md:grid-cols-4">
             <Field label="Sound Id">
@@ -639,13 +716,61 @@ function MentionRuleCard({ rule, onChange, onRemove, index }) {
       >
         <StyleListEditor items={rule.styles} onChange={(styles) => onChange({ ...rule, styles })} />
       </Subsection>
+      </div>}
     </div>
   );
 }
 
-function PermissionRuleEditor({ title, description, groups, onChange, createRule, renderRule }) {
+function RuleGroup({ groupKey, rules, dragGroup, onRename, onRemove, onAdd, onMoveRule, onSetRules, renderRule }) {
+  const listRef = useSortable({
+    group: dragGroup,
+    handle: ".rule-drag-handle",
+    onEnd: ({ from, to, oldIndex, newIndex }) => {
+      const fromKey = from.dataset.groupKey;
+      const toKey = to.dataset.groupKey;
+      if (fromKey !== toKey || oldIndex !== newIndex) onMoveRule(fromKey, toKey, oldIndex, newIndex);
+    }
+  }, [rules, dragGroup]);
+
+  return (
+    <div className="permission-group rounded-xl border border-neutral-700 bg-neutral-950/80 p-4">
+      <div className="permission-group-header">
+        <button type="button" className="drag-handle group-drag-handle" title="Move group" aria-label={`Move ${groupKey}`}>≡</button>
+        <div className="min-w-0 flex-1">
+          <div className="group-label">Permission group</div>
+          <Input value={groupKey} onChange={(event) => onRename(groupKey, event.target.value)} />
+        </div>
+        <div className="group-actions">
+          <span className="rule-count border border-neutral-800 bg-neutral-950 px-3 text-sm text-neutral-300">{rules.length} rule{rules.length === 1 ? "" : "s"}</span>
+          <Button variant="primary" onClick={onAdd}>Add rule</Button>
+          <Button className="border-red-900 bg-red-950/40 text-red-200 hover:bg-red-950" onClick={() => onRemove(groupKey)}>Remove group</Button>
+        </div>
+      </div>
+      <div ref={listRef} data-group-key={groupKey} className="rule-list space-y-3">
+        {rules.length === 0 && <div className="empty-rule-list">Drop rules here or add a new rule.</div>}
+        {rules.map((rule, index) => renderRule({
+          rule,
+          ruleKey: editorId(rule),
+          index,
+          onChange: (nextRule) => onSetRules(groupKey, rules.map((item, current) => current === index ? nextRule : item)),
+          onRemove: () => onSetRules(groupKey, rules.filter((_, current) => current !== index))
+        }))}
+      </div>
+    </div>
+  );
+}
+
+function PermissionRuleEditor({ title, description, groups, onChange, createRule, renderRule, dragGroup }) {
   const [newKey, setNewKey] = useState("");
   const keys = Object.keys(groups);
+  const groupsRef = useSortable({
+    handle: ".group-drag-handle",
+    onEnd: ({ oldIndex, newIndex }) => {
+      if (oldIndex === newIndex) return;
+      const reordered = moveItem(Object.entries(groups), oldIndex, newIndex);
+      onChange(Object.fromEntries(reordered));
+    }
+  }, [groups]);
 
   const addGroup = () => {
     if (!newKey.trim() || groups[newKey.trim()]) return;
@@ -670,6 +795,12 @@ function PermissionRuleEditor({ title, description, groups, onChange, createRule
   };
 
   const setRules = (key, rules) => onChange({ ...groups, [key]: rules });
+  const moveRule = (fromKey, toKey, oldIndex, newIndex) => {
+    const next = Object.fromEntries(Object.entries(groups).map(([key, rules]) => [key, [...rules]]));
+    const [rule] = next[fromKey].splice(oldIndex, 1);
+    next[toKey].splice(newIndex, 0, rule);
+    onChange(next);
+  };
 
   return (
     <Section
@@ -683,34 +814,20 @@ function PermissionRuleEditor({ title, description, groups, onChange, createRule
       }
     >
       {keys.length === 0 && <div className="text-sm text-neutral-500">No permission groups yet.</div>}
-      <div className="space-y-5">
+      <div ref={groupsRef} className="permission-groups space-y-5">
         {keys.map((key) => (
-          <div key={key} className="rounded-xl border border-neutral-700 bg-neutral-950/80 p-4">
-            <div className="mb-4 rounded-lg border border-neutral-800 bg-black/30 p-3">
-              <div className="flex flex-col gap-3 xl:flex-row xl:items-end xl:justify-between">
-                <div className="min-w-0 flex-1">
-                  <div className="text-xs font-medium uppercase tracking-[0.18em] text-neutral-500">Permission Group</div>
-                  <Input className="mt-2" value={key} onChange={(event) => renameGroup(key, event.target.value)} />
-                </div>
-                <div className="flex flex-wrap items-end gap-2 xl:pb-[1px]">
-                  <div className="rule-count border border-neutral-800 bg-neutral-950 px-3 text-sm text-neutral-300">
-                    {groups[key].length} rule{groups[key].length === 1 ? "" : "s"}
-                  </div>
-                  <Button variant="primary" onClick={() => setRules(key, [...groups[key], createRule()])}>Add Rule</Button>
-                  <Button className="border-red-900 bg-red-950/40 text-red-200 hover:bg-red-950" onClick={() => removeGroup(key)}>Remove Group</Button>
-                </div>
-              </div>
-            </div>
-            <div className="space-y-4">
-              {groups[key].length === 0 && <div className="rounded-lg border border-dashed border-neutral-800 px-4 py-6 text-sm text-neutral-500">No rules in this group yet.</div>}
-              {groups[key].map((rule, index) => renderRule({
-                rule,
-                index,
-                onChange: (nextRule) => setRules(key, groups[key].map((item, current) => current === index ? nextRule : item)),
-                onRemove: () => setRules(key, groups[key].filter((_, current) => current !== index))
-              }))}
-            </div>
-          </div>
+          <RuleGroup
+            key={key}
+            groupKey={key}
+            rules={groups[key]}
+            dragGroup={dragGroup}
+            onRename={renameGroup}
+            onRemove={removeGroup}
+            onAdd={() => setRules(key, [...groups[key], createRule()])}
+            onMoveRule={moveRule}
+            onSetRules={setRules}
+            renderRule={renderRule}
+          />
         ))}
       </div>
     </Section>
@@ -795,7 +912,6 @@ function ConfigEditor() {
     return (
       <div className="config-app grid min-h-screen place-items-center px-4 py-10">
         <div className="settings-section w-full max-w-xl p-7">
-          <div className="brand-mark mb-5">E</div>
           <h1 className="text-2xl font-normal">Config Generator</h1>
           <p className="mt-2 text-sm text-neutral-400">{message || "Loading configuration files..."}</p>
         </div>
@@ -920,7 +1036,6 @@ function ConfigEditor() {
       <div className="config-layout">
         <aside className="config-sidebar">
           <div className="brand">
-            <div className="brand-mark">E</div>
             <div>
               <div className="brand-kicker">Embellish Chat</div>
               <div className="brand-title">Config Generator</div>
@@ -960,27 +1075,27 @@ function ConfigEditor() {
           <>
             <Section title="Global Config" description="Core settings from config.json">
               <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                <Field label="Version"><Input value={config.version} onChange={(event) => setConfig({ ...config, version: event.target.value })} /></Field>
+                <Field label="Version"><Input value={config.version} readOnly /></Field>
                 <Field label="Delimiter"><Input value={config.delimiter} onChange={(event) => setConfig({ ...config, delimiter: event.target.value })} /></Field>
                 <Field label="Timestamp"><Input value={config.timestamp} onChange={(event) => setConfig({ ...config, timestamp: event.target.value })} /></Field>
                 <Field label="Command Alias"><Input value={config.command_alias} onChange={(event) => setConfig({ ...config, command_alias: event.target.value })} /></Field>
                 <Field label="URL Color"><ColorInput value={config.url_color} onChange={(value) => setConfig({ ...config, url_color: value })} /></Field>
                 <Field label="Team Color">
-                  <div className="space-y-2">
-                    <Toggle label="Automatic color enabled" checked={config.team_color !== null} onChange={(enabled) => setConfig({ ...config, team_color: enabled ? "#FF55FF" : null })} />
-                    {config.team_color !== null && <ColorInput value={config.team_color} onChange={(value) => setConfig({ ...config, team_color: value })} />}
+                  <div className="team-color-control">
+                    <ColorInput value={config.team_color ?? "#FF55FF"} disabled={config.team_color === null} onChange={(value) => setConfig({ ...config, team_color: value })} />
+                    <Toggle label="Enabled" checked={config.team_color !== null} onChange={(enabled) => setConfig({ ...config, team_color: enabled ? "#FF55FF" : null })} />
                   </div>
                 </Field>
               </div>
               <div className="grid gap-3 md:grid-cols-4">
-                <Toggle label="Notify command enabled" checked={config.notify_command_enabled} onChange={(value) => setConfig({ ...config, notify_command_enabled: value })} />
-                <Toggle label="Notify mention enabled" checked={config.notify_mention_enabled} onChange={(value) => setConfig({ ...config, notify_mention_enabled: value })} />
-                <Toggle label="Require same channel" checked={config.require_same_channel} onChange={(value) => setConfig({ ...config, require_same_channel: value })} />
-                <Toggle label="Disable vanilla chat format" checked={config.disable_vanilla_chat_format} onChange={(value) => setConfig({ ...config, disable_vanilla_chat_format: value })} />
+                <Toggle label="Notify Command Enabled" checked={config.notify_command_enabled} onChange={(value) => setConfig({ ...config, notify_command_enabled: value })} />
+                <Toggle label="Notify Mention Enabled" checked={config.notify_mention_enabled} onChange={(value) => setConfig({ ...config, notify_mention_enabled: value })} />
+                <Toggle label="Require Same Channel" checked={config.require_same_channel} onChange={(value) => setConfig({ ...config, require_same_channel: value })} />
+                <Toggle label="Disable Vanilla Chat Format" checked={config.disable_vanilla_chat_format} onChange={(value) => setConfig({ ...config, disable_vanilla_chat_format: value })} />
               </div>
             </Section>
 
-            <Section title="Presets" description="message header, whitelist, icon, item, and color">
+            <Section title="Presets" description="Reusable headers, allowed URL domains, sprites, and colors">
               <div className="space-y-5">
                 <KeyValueEditor
                   title="Message Headers"
@@ -997,7 +1112,7 @@ function ConfigEditor() {
                   }}
                 />
                 <ListTextEditor
-                  title="Whitelist"
+                  title="Allowed URL Domains"
                   values={presets.whitelist}
                   placeholder="whitelist entry"
                   onAdd={(value) => setPresets({ ...presets, whitelist: [...presets.whitelist, value] })}
@@ -1042,7 +1157,7 @@ function ConfigEditor() {
               </div>
             </Section>
 
-            <Section title="Players" description="Player UUID utilities stay at the bottom, with head and name lookup restored.">
+            <Section title="Players" description="Players excluded from Embellish Chat features or mention notifications">
               <div className="space-y-5">
                 <PlayerListEditor
                   title="Banned Players"
@@ -1054,7 +1169,7 @@ function ConfigEditor() {
                   onRemove={(index) => setUuidList("banned_players", config.banned_players.filter((_, current) => current !== index))}
                 />
                 <PlayerListEditor
-                  title="Notify-Off Players"
+                  title="Notification-Disabled Players"
                   values={config.notify_off_players}
                   placeholder="UUID (e.g. 123e4567-e89b-12d3-a456-426614174000)"
                   fetchPlayerProfile={fetchPlayerProfile}
@@ -1074,7 +1189,8 @@ function ConfigEditor() {
             groups={styles.style_rules}
             onChange={(style_rules) => setStyles({ ...styles, style_rules })}
             createRule={emptyStyleRule}
-            renderRule={({ rule, index, onChange, onRemove }) => <StyleRuleCard rule={rule} index={index} onChange={onChange} onRemove={onRemove} />}
+            dragGroup="style-rules"
+            renderRule={({ rule, ruleKey, index, onChange, onRemove }) => <StyleRuleCard key={ruleKey} rule={rule} index={index} onChange={onChange} onRemove={onRemove} />}
           />
         )}
 
@@ -1085,7 +1201,8 @@ function ConfigEditor() {
             groups={mentions.mention_rules}
             onChange={(mention_rules) => setMentions({ ...mentions, mention_rules })}
             createRule={emptyMentionRule}
-            renderRule={({ rule, index, onChange, onRemove }) => <MentionRuleCard rule={rule} index={index} onChange={onChange} onRemove={onRemove} />}
+            dragGroup="mention-rules"
+            renderRule={({ rule, ruleKey, index, onChange, onRemove }) => <MentionRuleCard key={ruleKey} rule={rule} index={index} onChange={onChange} onRemove={onRemove} />}
           />
         )}
 
@@ -1111,4 +1228,4 @@ function ConfigEditor() {
   );
 }
 
-ReactDOM.createRoot(document.getElementById("root")).render(<ConfigEditor />);
+preact.render(<ConfigEditor />, document.getElementById("root"));
