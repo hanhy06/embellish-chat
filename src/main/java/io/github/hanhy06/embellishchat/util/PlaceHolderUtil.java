@@ -5,6 +5,7 @@ import eu.pb4.placeholders.api.PlaceholderContext;
 import eu.pb4.placeholders.api.PlaceholderResult;
 import eu.pb4.placeholders.api.Placeholders;
 import eu.pb4.placeholders.api.node.TextNode;
+import eu.pb4.placeholders.api.parsers.LegacyFormattingParser;
 import eu.pb4.placeholders.api.parsers.TagParser;
 import io.github.hanhy06.embellishchat.EmbellishChat;
 import net.minecraft.network.chat.Component;
@@ -36,6 +37,18 @@ public class PlaceHolderUtil {
             if (player == null) return PlaceholderResult.invalid("no player");
             return PlaceholderResult.value(placeholders.get(player.getUUID()));
         });
+
+        Placeholders.register(Identifier.fromNamespaceAndPath(EmbellishChat.MOD_ID,"prefix"),(context, string) -> {
+            if (!FabricUtil.isLuckPerms) return PlaceholderResult.invalid("no luckperms");
+            if (!(context.player() instanceof ServerPlayer player)) return PlaceholderResult.invalid("no player");
+            return PlaceholderResult.value(parseAffix(LuckPermsUtil.getPrefix(player),player));
+        });
+
+        Placeholders.register(Identifier.fromNamespaceAndPath(EmbellishChat.MOD_ID,"suffix"),(context, string) -> {
+            if (!FabricUtil.isLuckPerms) return PlaceholderResult.invalid("no luckperms");
+            if (!(context.player() instanceof ServerPlayer player)) return PlaceholderResult.invalid("no player");
+            return PlaceholderResult.value(parseAffix(LuckPermsUtil.getSuffix(player),player));
+        });
     }
 
     public static Component parseTag(String text){
@@ -50,6 +63,18 @@ public class PlaceHolderUtil {
 
         TextNode placeholderText = Placeholders.parseNodes(TextNode.of(text));
         TextNode taggedText = TextNode.asSingle(TagParser.DEFAULT.parseNodes(placeholderText));
+
+        return taggedText.toText(context);
+    }
+
+    public static Component parseAffix(String text, ServerPlayer player) {
+        if (text.isEmpty()) return Component.literal(text);
+
+        ParserContext context = getParserContext(player);
+
+        TextNode placeholderText = Placeholders.parseNodes(TextNode.of(text));
+        TextNode taggedText = TextNode.asSingle(TagParser.DEFAULT.parseNodes(placeholderText));
+        taggedText = TextNode.asSingle(LegacyFormattingParser.ALL.parseNodes(taggedText));
 
         return taggedText.toText(context);
     }
