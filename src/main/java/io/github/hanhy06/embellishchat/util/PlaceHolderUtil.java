@@ -35,7 +35,7 @@ public class PlaceHolderUtil {
         Placeholders.register(ResourceLocation.fromNamespaceAndPath(EmbellishChat.MOD_ID,"content"),(context, string) -> {
             Player player = context.player();
             if (player == null) return PlaceholderResult.invalid("no player");
-            return PlaceholderResult.value(placeholders.get(player.getUUID()));
+            return PlaceholderResult.value(placeholders.getOrDefault(player.getUUID(),""));
         });
 
         Placeholders.register(ResourceLocation.fromNamespaceAndPath(EmbellishChat.MOD_ID,"prefix"),(context, string) -> {
