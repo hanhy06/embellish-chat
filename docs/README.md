@@ -121,7 +121,7 @@ Use the following patterns directly in the chat window to apply styles:
 ## ⚙️ Configuration
 
 Embellish Chat uses regular expressions to define chat styles and mentions.
-For help creating or editing configs, copy the contents of [AGENTS.md](https://raw.githubusercontent.com/hanhy06/embellish-chat/main/docs/AGENTS.md) into your preferred AI assistant and describe what you need.
+For help creating or editing configs, copy the contents of [AGENTS.md](https://github.com/hanhy06/embellish-chat/blob/HEAD/docs/AGENTS.md) into your preferred AI assistant and describe what you need.
 
 ### Config
 

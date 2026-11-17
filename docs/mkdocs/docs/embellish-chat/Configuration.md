@@ -4,7 +4,7 @@ Embellish Chat stores its configuration in `config/embellish-chat/`. The files a
 owners can edit general settings, style rules, mention rules, and shared presets independently.
 
 !!! tip "Create and edit configs with AI"
-    Copy the contents of [AGENTS.md](https://raw.githubusercontent.com/hanhy06/embellish-chat/main/docs/AGENTS.md) into your preferred AI assistant, then describe what you want to configure.
+    Copy the contents of [AGENTS.md](https://github.com/hanhy06/embellish-chat/blob/HEAD/docs/AGENTS.md) into your preferred AI assistant, then describe what you want to configure.
 
 ## File Layout
 
