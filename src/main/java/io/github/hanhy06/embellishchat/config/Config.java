@@ -444,7 +444,16 @@ public record Config(
                         Identifier.parse("minecraft:item/golden_apple")
                 )
         );
-
+        item.put("minecraft:shield",new AtlasSprite(
+                        Identifier.parse("minecraft:items"),
+                        Identifier.parse("minecraft:item/barrier")
+                )
+        );
+        item.put("minecraft:debug_stick",new AtlasSprite(
+                        Identifier.parse("minecraft:items"),
+                        Identifier.parse("minecraft:item/stick")
+                )
+        );
         return item;
     }
 
