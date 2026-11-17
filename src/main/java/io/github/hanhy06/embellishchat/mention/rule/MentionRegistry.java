@@ -8,6 +8,7 @@ import io.github.hanhy06.embellishchat.mention.data.Target;
 import io.github.hanhy06.embellishchat.util.*;
 import me.lucko.fabric.api.permissions.v0.Permissions;
 import net.fabricmc.fabric.api.networking.v1.PlayerLookup;
+import net.minecraft.ChatFormatting;
 import net.minecraft.commands.arguments.selector.EntitySelector;
 import net.minecraft.commands.arguments.selector.EntitySelectorParser;
 import net.minecraft.core.registries.Registries;
@@ -132,9 +133,8 @@ public class MentionRegistry {
                 Style name = target.getDisplayName().getStyle();
                 style = name.applyTo(style);
             } else {
-                style = playerTeam.getColor()
-                        .map(teamColor -> Style.EMPTY.withColor(teamColor.rgb()))
-                        .orElse(style);
+                ChatFormatting teamColor = playerTeam.getColor();
+                if (teamColor.isColor()) style = Style.EMPTY.withColor(teamColor);
             }
         }
 
