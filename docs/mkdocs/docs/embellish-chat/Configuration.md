@@ -3,9 +3,11 @@
 Embellish Chat stores its configuration in `config/embellish-chat/`. The files are split by responsibility so server
 owners can edit general settings, style rules, mention rules, and shared presets independently.
 
-!!! tip "Use the config generator for complex rules"
-    Regular expressions are powerful, but they are easy to break. For most servers,
-    the [Web Config Generator](../config-generator/index.html) is the safest way to build and edit rules.
+[//]: # (!!! tip "Use the config generator for complex rules")
+
+[//]: # (    Regular expressions are powerful, but they are easy to break. For most servers,)
+
+[//]: # (    the [Web Config Generator]&#40;../config-generator/index.html&#41; is the safest way to build and edit rules.)
 
 ## File Layout
 
