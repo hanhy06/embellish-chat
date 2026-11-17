@@ -8,7 +8,7 @@ import io.github.hanhy06.embellishchat.mention.rule.MentionRule;
 import io.github.hanhy06.embellishchat.styling.rule.StyleAction;
 import io.github.hanhy06.embellishchat.styling.rule.StyleRule;
 import net.minecraft.network.chat.MutableComponent;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.sounds.SoundEvent;
 
 import java.awt.*;
@@ -51,10 +51,10 @@ public class ConfigManager {
             .registerTypeAdapter(Pattern.class, new PatternTypeAdapter())
             .registerTypeAdapter(SoundEvent.class, new SoundEventTypeAdapter())
             .registerTypeAdapter(Color.class, new ColorTypeAdapter())
-            .registerTypeAdapter(Identifier.class, new IdentifierTypeAdapter())
+            .registerTypeAdapter(ResourceLocation.class, new ResourceLocationTypeAdapter())
             .registerTypeAdapter(MutableComponent.class, new MutableTextAdapter())
             .setPrettyPrinting()
-            .setStrictness(Strictness.LENIENT)
+            .setLenient()
             .disableHtmlEscaping()
             .create();
 
@@ -127,8 +127,6 @@ public class ConfigManager {
         if (config.mention_rules() == null) return "mention_rules is missing";
         if (config.message_header() == null) return "message_header is missing";
         if (config.whitelist() == null) return "whitelist is missing";
-        if (config.icon() == null) return "icon is missing";
-        if (config.item() == null) return "item is missing";
         if (config.color() == null) return "color is missing";
         if (config.delimiter() == null) return "delimiter is missing";
         if (config.timestamp() == null) return "timestamp is missing";
@@ -249,10 +247,6 @@ public class ConfigManager {
         if (messageHeader != null) presetsJson.add("message_header", messageHeader);
         JsonElement whitelist = fullJson.remove("whitelist");
         if (whitelist != null) presetsJson.add("whitelist", whitelist);
-        JsonElement icon = fullJson.remove("icon");
-        if (icon != null) presetsJson.add("icon", icon);
-        JsonElement item = fullJson.remove("item");
-        if (item != null) presetsJson.add("item", item);
         JsonElement colorPreset = fullJson.remove("color");
         if (colorPreset != null) presetsJson.add("color", colorPreset);
 

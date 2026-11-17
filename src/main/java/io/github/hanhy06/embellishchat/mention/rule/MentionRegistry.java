@@ -8,11 +8,12 @@ import io.github.hanhy06.embellishchat.mention.data.Target;
 import io.github.hanhy06.embellishchat.util.*;
 import me.lucko.fabric.api.permissions.v0.Permissions;
 import net.fabricmc.fabric.api.networking.v1.PlayerLookup;
+import net.minecraft.ChatFormatting;
 import net.minecraft.commands.arguments.selector.EntitySelector;
 import net.minecraft.commands.arguments.selector.EntitySelectorParser;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Style;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
@@ -82,7 +83,7 @@ public class MentionRegistry {
         float round = NumberUtils.toFloat(parameter.option(), 64);
 
         HashSet<ServerPlayer> players = new HashSet<>(PlayerLookup.around(
-                parameter.player().level(),
+                parameter.player().serverLevel(),
                 parameter.player().position(),
                 round
         ));
@@ -132,9 +133,8 @@ public class MentionRegistry {
                 Style name = target.getDisplayName().getStyle();
                 style = name.applyTo(style);
             } else {
-                style = playerTeam.getColor()
-                        .map(teamColor -> Style.EMPTY.withColor(teamColor.rgb()))
-                        .orElse(style);
+                ChatFormatting teamColor = playerTeam.getColor();
+                if (teamColor.isColor()) style = Style.EMPTY.withColor(teamColor);
             }
         }
 
@@ -145,7 +145,7 @@ public class MentionRegistry {
     private Target WORLD(MentionParameter parameter){
         String worldName = parameter.option();
         MinecraftServer server = EmbellishChat.SERVER;
-        Identifier worldId = Identifier.tryParse(worldName);
+        ResourceLocation worldId = ResourceLocation.tryParse(worldName);
 
         if (worldId == null) {
             throw new MessageBlockedException("Invalid world ID.");
@@ -155,7 +155,7 @@ public class MentionRegistry {
         ServerLevel targetLevel = server.getLevel(worldKey);
 
         if (targetLevel != null) {
-            HashSet<ServerPlayer> players = new HashSet<>(PlayerLookup.level(targetLevel));
+            HashSet<ServerPlayer> players = new HashSet<>(PlayerLookup.world(targetLevel));
             return Target.of(players,null);
         } else {
             throw new MessageBlockedException("World not found.");

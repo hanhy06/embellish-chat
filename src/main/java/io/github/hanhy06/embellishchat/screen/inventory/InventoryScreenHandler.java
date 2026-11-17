@@ -10,12 +10,11 @@ import net.minecraft.world.SimpleMenuProvider;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.ChestMenu;
-import net.minecraft.world.inventory.ContainerInput;
+import net.minecraft.world.inventory.ClickType;
 import net.minecraft.world.inventory.InventoryMenu;
 import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
-import org.jspecify.annotations.NonNull;
 
 public class InventoryScreenHandler extends ChestMenu {
     public InventoryScreenHandler(MenuType<?> type,int syncId, Inventory playerInventory, Container inventory,int rows) {
@@ -23,7 +22,7 @@ public class InventoryScreenHandler extends ChestMenu {
     }
 
     @Override
-    public void clicked(int slotIndex, int button, @NonNull ContainerInput actionType, @NonNull Player player) {
+    public void clicked(int slotIndex, int button, ClickType actionType, Player player) {
         if (slotIndex >= 0 && slotIndex < 9 * this.getRowCount()) {
             ItemStack stack = this.getSlot(slotIndex).getItem();
 
@@ -34,18 +33,18 @@ public class InventoryScreenHandler extends ChestMenu {
 
             return;
         }
-        if (actionType == ContainerInput.PICKUP_ALL) return;
+        if (actionType == ClickType.PICKUP_ALL) return;
 
         super.clicked(slotIndex, button, actionType, player);
     }
 
     @Override
-    public @NonNull ItemStack quickMoveStack(@NonNull Player player, int slot) {
+    public ItemStack quickMoveStack(Player player, int slot) {
         return ItemStack.EMPTY;
     }
 
     @Override
-    public boolean stillValid(@NonNull Player player) {
+    public boolean stillValid(Player player) {
         return true;
     }
 
@@ -53,7 +52,7 @@ public class InventoryScreenHandler extends ChestMenu {
     private static void openWrittenBook(ItemStack stack,ServerPlayer player){
         player.closeContainer();
 
-        int selectedHotbarSlot = player.getInventory().getSelectedSlot();
+        int selectedHotbarSlot = player.getInventory().selected;
         ItemStack original = player.getInventory().getItem(selectedHotbarSlot).copy();
         int playerInventorySlot = InventoryMenu.USE_ROW_SLOT_START + selectedHotbarSlot;
         ItemStack book = stack.copy();
