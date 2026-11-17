@@ -120,8 +120,8 @@ Use the following patterns directly in the chat window to apply styles:
 
 ## ⚙️ Configuration
 
-Embellish Chat provides powerful functionality through the use of regular expressions.
-Because regular expressions are inherently difficult, it is recommended to leverage various AI tools for rule creation and optimization.
+Embellish Chat uses regular expressions to define chat styles and mentions.
+For help creating or editing configs, copy the contents of [AGENTS.md](https://raw.githubusercontent.com/hanhy06/embellish-chat/main/docs/AGENTS.md) into your preferred AI assistant and describe what you need.
 
 ### Config
 

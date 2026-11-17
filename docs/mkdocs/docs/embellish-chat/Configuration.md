@@ -3,11 +3,8 @@
 Embellish Chat stores its configuration in `config/embellish-chat/`. The files are split by responsibility so server
 owners can edit general settings, style rules, mention rules, and shared presets independently.
 
-[//]: # (!!! tip "Use the config generator for complex rules")
-
-[//]: # (    Regular expressions are powerful, but they are easy to break. For most servers,)
-
-[//]: # (    the [Web Config Generator]&#40;../config-generator/index.html&#41; is the safest way to build and edit rules.)
+!!! tip "Create and edit configs with AI"
+    Copy the contents of [AGENTS.md](https://raw.githubusercontent.com/hanhy06/embellish-chat/main/docs/AGENTS.md) into your preferred AI assistant, then describe what you want to configure.
 
 ## File Layout
 
